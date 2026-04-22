@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ministerios – CLM Puente Piedra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/ministerios.css"/>
+  <style>
+    /* Ocultar página hasta verificar rol */
+    body { visibility: hidden; }
+    body.auth-ok { visibility: visible; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo"><img src="LOGOCLM.png" alt="CLM"/></div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+
+    <!-- LOGO -->
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+
+    <!-- NAV CENTRAL -->
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html" class="nav-link ">👥 Miembros</a>
+          <a href="dashboard.html" class="nav-link ">📊 Dashboard</a>
+          <a href="ministerios.html" class="nav-link nav-link--active">⛪ Ministerios</a>
+          <a href="tipos.html" class="nav-link ">🏷️ Tipos</a>
+          <a href="eventos.html" class="nav-link ">📅 Eventos</a>
+          <a href="finanzas.html" class="nav-link ">💰 Finanzas</a>
+          
+    </nav>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-right">
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
+      
+    </div>
+
+    <!-- HAMBURGUESA -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+
+  </div>
+</header>
+
+<main class="min-main">
+
+  <!-- VISTA LISTA DE MINISTERIOS -->
+  <div id="vistaLista">
+    <div class="min-toolbar">
+      <h2 class="min-page-title">⛪ Ministerios</h2>
+      <button id="btnNuevoMin" class="btn btn-primary">+ Nuevo Ministerio</button>
+    </div>
+    <div id="ministeriosGrid" class="min-grid"></div>
+  </div>
+
+  <!-- VISTA DETALLE DE UN MINISTERIO -->
+  <div id="vistaDetalle" style="display:none">
+    <div class="min-toolbar">
+      <button id="btnVolverLista" class="btn btn-ghost">← Volver</button>
+      <button id="btnAgregarMiembro" class="btn btn-primary">+ Agregar Miembro</button>
+    </div>
+    <div class="min-detalle-header">
+      <div class="min-detalle-icon" id="detalleIcon">⛪</div>
+      <div>
+        <h2 id="detalleNombre"></h2>
+        <p id="detalleDesc"></p>
+      </div>
+      <div class="min-detalle-actions">
+        <button class="btn btn-ghost" id="btnEditarMin">✏️ Editar</button>
+        <button class="btn btn-ghost danger-btn" id="btnEliminarMin">🗑️ Eliminar</button>
+      </div>
+    </div>
+    <div id="miembrosDelMin" class="min-miembros-grid"></div>
+  </div>
+
+</main>
+
+<!-- MODAL Nuevo/Editar Ministerio -->
+<div class="modal-overlay" id="modalMin">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalMinTitle">Nuevo Ministerio</h2>
+      <button class="modal-close" id="btnCerrarMin">✕</button>
+    </div>
+    <form id="minForm" novalidate>
+      <input type="hidden" id="minEditId"/>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Nombre del Ministerio *</label>
+          <input id="minNombre" type="text" placeholder="Ej: Alabanza, Jóvenes, Comunicaciones…" required/>
+        </div>
+        <div class="form-group form-full">
+          <label>Descripción</label>
+          <input id="minDesc" type="text" placeholder="Breve descripción del ministerio"/>
+        </div>
+        <div class="form-group">
+          <label>Icono (emoji)</label>
+          <input id="minIcono" type="text" placeholder="🎵" maxlength="2"/>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input id="minColor" type="color" value="#C9A84C"/>
+        </div>
+      </div>
+      <div class="form-footer">
+        <button type="button" class="btn btn-ghost" id="btnCancelarMin">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnGuardarMin">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Agregar miembro al ministerio -->
+<div class="modal-overlay" id="modalAgregarMiembro">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Agregar Miembro</h2>
+      <button class="modal-close" id="btnCerrarAgregar">✕</button>
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label>Buscar miembro</label>
+      <input id="searchMiembro" type="text" placeholder="Escribe el nombre…"
+             style="background:var(--dark3);border:1px solid var(--dark4);border-radius:8px;padding:.65rem .9rem;color:var(--text);font-size:.9rem;outline:none;width:100%;margin-top:.4rem"/>
+    </div>
+    <div id="listaMiembrosAgregar" class="lista-miembros-agregar"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+function showLoader(t){ document.getElementById("loaderTxt").textContent=t||"Cargando…"; document.getElementById("loaderOverlay").classList.add("active"); }
+function hideLoader() { document.getElementById("loaderOverlay").classList.remove("active"); }
+
+// ── AUTH ──
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  let rol = "colaborador";
+  let nombre = "";
+
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    nombre = data.nombre || user.email.split("@")[0];
+    rol    = data.rol    || "colaborador";
+  } catch(e) {
+    nombre = user.email.split("@")[0];
+  }
+
+  // ── CONTROL DE ACCESO ──
+  const rolesPermitidos = ["admin", "colaborador"];
+  if (!rolesPermitidos.includes(rol)) {
+    // No tiene permiso — redirigir
+    window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
+    return;
+  }
+
+  // ── Mostrar página (oculta hasta verificar rol) ──
+  document.body.classList.add("auth-ok");
+
+  // ── Mostrar nombre ──
+  const el = document.getElementById("userNombre");
+  if (el) el.textContent = "👤 " + nombre;
+
+  // ── Ajustar nav según rol ──
+  if (rol === "colaborador") {
+    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "finanzas") {
+    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
+      if (a.classList.contains("nav-link")) a.style.display = "none";
+    });
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "admin") {
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+  }
+
+  // ── Cargar contenido ──
+  loadMinisterios();
+});
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if(!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut(); window.location.href="login.html";
+});
+
+// ── ESTADO ──
+let todosLosMinisterios = [];
+let todosLosMiembros    = [];
+let ministerioActual    = null;
+
+function initials(name) {
+  return name.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase();
+}
+
+// ══════════════════════════════════════
+//  CARGAR MINISTERIOS
+// ══════════════════════════════════════
+async function loadMinisterios() {
+  showLoader("Cargando ministerios…");
+  try {
+    const [snapMin, snapMiembros] = await Promise.all([
+      db.collection("ministerios").orderBy("nombre").get(),
+      db.collection("miembros").orderBy("nombre").get()
+    ]);
+    todosLosMinisterios = snapMin.docs.map(d=>({id:d.id,...d.data()}));
+    todosLosMiembros    = snapMiembros.docs.map(d=>({id:d.id,...d.data()}));
+    renderListaMinisterios();
+  } catch(e) {
+    alert("Error: "+e.message);
+  } finally {
+    hideLoader();
+  }
+}
+
+// ══════════════════════════════════════
+//  RENDER LISTA
+// ══════════════════════════════════════
+function renderListaMinisterios() {
+  const grid = document.getElementById("ministeriosGrid");
+  if (todosLosMinisterios.length === 0) {
+    grid.innerHTML = `<div class="state-box" style="grid-column:1/-1"><div class="state-icon">⛪</div><p>No hay ministerios aún.<br>¡Crea el primero!</p></div>`;
+    return;
+  }
+  grid.innerHTML = "";
+  todosLosMinisterios.forEach(min => {
+    // Contar miembros de este ministerio
+    const count = todosLosMiembros.filter(m =>
+      (m.ministeriosIds||[]).includes(min.id) ||
+      (m.ministerio||"").toLowerCase() === min.nombre.toLowerCase()
+    ).length;
+
+    const card = document.createElement("div");
+    card.className = "min-card";
+    card.innerHTML = `
+      <div class="min-card-top" style="background:${min.color||"#C9A84C"}22;border-bottom:2px solid ${min.color||"#C9A84C"}44">
+        <span class="min-card-icon">${min.icono||"⛪"}</span>
+        <div class="min-card-info">
+          <h3>${min.nombre}</h3>
+          <p>${min.descripcion||"Sin descripción"}</p>
+        </div>
+      </div>
+      <div class="min-card-footer">
+        <span class="min-count"><strong>${count}</strong> miembro${count!==1?"s":""}</span>
+        <button class="btn btn-primary btn-sm">Ver ministerio →</button>
+      </div>`;
+    card.querySelector(".btn-primary").onclick = () => verDetalle(min);
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════
+//  VER DETALLE
+// ══════════════════════════════════════
+function verDetalle(min) {
+  ministerioActual = min;
+  document.getElementById("vistaLista").style.display   = "none";
+  document.getElementById("vistaDetalle").style.display = "";
+  document.getElementById("detalleNombre").textContent  = min.nombre;
+  document.getElementById("detalleDesc").textContent    = min.descripcion||"";
+  document.getElementById("detalleIcon").textContent    = min.icono||"⛪";
+  document.getElementById("detalleIcon").style.background = (min.color||"#C9A84C")+"22";
+  renderMiembrosDelMin(min);
+}
+
+function renderMiembrosDelMin(min) {
+  const miembros = todosLosMiembros.filter(m =>
+    (m.ministeriosIds||[]).includes(min.id) ||
+    (m.ministerio||"").toLowerCase() === min.nombre.toLowerCase()
+  );
+  const grid = document.getElementById("miembrosDelMin");
+  if (miembros.length === 0) {
+    grid.innerHTML = `<div class="state-box"><div class="state-icon">👥</div><p>No hay miembros en este ministerio aún.</p></div>`;
+    return;
+  }
+  grid.innerHTML = miembros.map(m => {
+    const foto = m.fotoUrl
+      ? `<img src="${m.fotoUrl}" class="min-miembro-foto-img" alt="${m.nombre}"/>`
+      : `<div class="min-miembro-foto-init">${initials(m.nombre)}</div>`;
+    return `
+      <div class="min-miembro-card">
+        <div class="min-miembro-foto">${foto}</div>
+        <div class="min-miembro-info">
+          <strong>${m.nombre}</strong>
+          <span>${m.estado||"–"}</span>
+        </div>
+        <button class="btn-icon danger" onclick="quitarDelMin('${m.id}','${min.id}','${min.nombre}')">✕</button>
+      </div>`;
+  }).join("");
+}
+
+// ══════════════════════════════════════
+//  QUITAR MIEMBRO DEL MINISTERIO
+// ══════════════════════════════════════
+async function quitarDelMin(miembroId, minId, minNombre) {
+  if (!confirm("¿Quitar este miembro del ministerio?")) return;
+  showLoader("Actualizando…");
+  try {
+    const m = todosLosMiembros.find(x=>x.id===miembroId);
+    const nuevosIds = (m.ministeriosIds||[]).filter(id=>id!==minId);
+    await db.collection("miembros").doc(miembroId).update({ ministeriosIds: nuevosIds });
+    await loadMinisterios();
+    verDetalle(ministerioActual);
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+
+// ══════════════════════════════════════
+//  MODAL NUEVO/EDITAR MINISTERIO
+// ══════════════════════════════════════
+function openModalMin(min) {
+  document.getElementById("modalMinTitle").textContent = min ? "Editar Ministerio" : "Nuevo Ministerio";
+  document.getElementById("minEditId").value   = min ? min.id : "";
+  document.getElementById("minNombre").value   = min ? min.nombre      : "";
+  document.getElementById("minDesc").value     = min ? min.descripcion : "";
+  document.getElementById("minIcono").value    = min ? min.icono       : "";
+  document.getElementById("minColor").value    = min ? min.color       : "#C9A84C";
+  document.getElementById("modalMin").classList.add("open");
+}
+function closeModalMin() { document.getElementById("modalMin").classList.remove("open"); }
+
+document.getElementById("btnNuevoMin").onclick   = () => openModalMin(null);
+document.getElementById("btnCerrarMin").onclick  = closeModalMin;
+document.getElementById("btnCancelarMin").onclick= closeModalMin;
+document.getElementById("modalMin").onclick      = e => { if(e.target===e.currentTarget) closeModalMin(); };
+
+document.getElementById("minForm").onsubmit = async e => {
+  e.preventDefault();
+  const btn    = document.getElementById("btnGuardarMin");
+  const nombre = document.getElementById("minNombre").value.trim();
+  if (!nombre) { alert("El nombre es obligatorio."); return; }
+  btn.disabled = true; btn.textContent = "Guardando…";
+  showLoader("Guardando ministerio…");
+  const editId = document.getElementById("minEditId").value;
+  const data = {
+    nombre,
+    descripcion: document.getElementById("minDesc").value.trim(),
+    icono:       document.getElementById("minIcono").value.trim() || "⛪",
+    color:       document.getElementById("minColor").value,
+  };
+  try {
+    if (editId) {
+      await db.collection("ministerios").doc(editId).update(data);
+    } else {
+      data.creadoEn = new Date().toISOString();
+      await db.collection("ministerios").add(data);
+    }
+    closeModalMin();
+    await loadMinisterios();
+    if (ministerioActual && editId === ministerioActual.id) {
+      ministerioActual = { ...ministerioActual, ...data };
+      verDetalle(ministerioActual);
+    }
+  } catch(err) { alert("Error: "+err.message); }
+  finally { btn.disabled=false; btn.textContent="Guardar"; hideLoader(); }
+};
+
+// ══════════════════════════════════════
+//  EDITAR / ELIMINAR DESDE DETALLE
+// ══════════════════════════════════════
+document.getElementById("btnEditarMin").onclick = () => openModalMin(ministerioActual);
+
+document.getElementById("btnEliminarMin").onclick = async () => {
+  if (!confirm(`¿Eliminar el ministerio "${ministerioActual.nombre}"?`)) return;
+  showLoader("Eliminando…");
+  try {
+    await db.collection("ministerios").doc(ministerioActual.id).delete();
+    ministerioActual = null;
+    document.getElementById("vistaDetalle").style.display = "none";
+    document.getElementById("vistaLista").style.display   = "";
+    await loadMinisterios();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+};
+
+document.getElementById("btnVolverLista").onclick = () => {
+  document.getElementById("vistaDetalle").style.display = "none";
+  document.getElementById("vistaLista").style.display   = "";
+  ministerioActual = null;
+};
+
+// ══════════════════════════════════════
+//  AGREGAR MIEMBRO AL MINISTERIO
+// ══════════════════════════════════════
+document.getElementById("btnAgregarMiembro").onclick = () => {
+  renderListaParaAgregar("");
+  document.getElementById("searchMiembro").value = "";
+  document.getElementById("modalAgregarMiembro").classList.add("open");
+};
+document.getElementById("btnCerrarAgregar").onclick = () =>
+  document.getElementById("modalAgregarMiembro").classList.remove("open");
+document.getElementById("modalAgregarMiembro").onclick = e => {
+  if(e.target===e.currentTarget) e.target.classList.remove("open");
+};
+document.getElementById("searchMiembro").oninput = e =>
+  renderListaParaAgregar(e.target.value);
+
+function renderListaParaAgregar(q) {
+  const term = q.toLowerCase();
+  // Miembros que NO están ya en el ministerio
+  const yaEnMin = todosLosMiembros
+    .filter(m => (m.ministeriosIds||[]).includes(ministerioActual.id) ||
+                 (m.ministerio||"").toLowerCase()===ministerioActual.nombre.toLowerCase())
+    .map(m=>m.id);
+
+  const filtrados = todosLosMiembros
+    .filter(m => !yaEnMin.includes(m.id))
+    .filter(m => !term || m.nombre.toLowerCase().includes(term));
+
+  const lista = document.getElementById("listaMiembrosAgregar");
+  if (filtrados.length === 0) {
+    lista.innerHTML = `<p style="color:var(--text2);text-align:center;padding:1rem">No hay miembros disponibles.</p>`;
+    return;
+  }
+  lista.innerHTML = filtrados.map(m => {
+    const foto = m.fotoUrl
+      ? `<img src="${m.fotoUrl}" class="min-miembro-foto-img" alt="${m.nombre}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--gold)"/>`
+      : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0D1117;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0">${initials(m.nombre)}</div>`;
+    return `
+      <div class="agregar-item">
+        ${foto}
+        <div style="flex:1"><strong>${m.nombre}</strong><br><small style="color:var(--text2)">${m.ministerio||"Sin ministerio"}</small></div>
+        <button class="btn btn-primary btn-sm" onclick="agregarAlMin('${m.id}')">+ Agregar</button>
+      </div>`;
+  }).join("");
+}
+
+async function agregarAlMin(miembroId) {
+  showLoader("Agregando…");
+  try {
+    const m = todosLosMiembros.find(x=>x.id===miembroId);
+    const nuevosIds = [...new Set([...(m.ministeriosIds||[]), ministerioActual.id])];
+    await db.collection("miembros").doc(miembroId).update({ ministeriosIds: nuevosIds });
+    document.getElementById("modalAgregarMiembro").classList.remove("open");
+    await loadMinisterios();
+    verDetalle(ministerioActual);
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+</script>
+
+<!-- BOTTOM NAV MÓVIL -->
+<nav class="bottom-nav">
+  <a href="index.html" class="">
+    <span class="bnav-icon">👥</span>Miembros
+  </a>
+  <a href="dashboard.html" class="">
+    <span class="bnav-icon">📊</span>Dashboard
+  </a>
+  <a href="ministerios.html" class="active">
+    <span class="bnav-icon">⛪</span>Ministerios
+  </a>
+  <a href="eventos.html" class="">
+    <span class="bnav-icon">📅</span>Eventos
+  </a>
+  <a href="finanzas.html" class="">
+    <span class="bnav-icon">💰</span>Finanzas
+  </a>
+</nav>
+
+</body>
+</html>

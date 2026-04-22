@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tipos de Personas – CLM Puente Piedra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/tipos.css"/>
+  <style>
+    /* Ocultar página hasta verificar rol */
+    body { visibility: hidden; }
+    body.auth-ok { visibility: visible; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo"><img src="LOGOCLM.png" alt="CLM"/></div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+
+    <!-- LOGO -->
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+
+    <!-- NAV CENTRAL -->
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html" class="nav-link ">👥 Miembros</a>
+          <a href="dashboard.html" class="nav-link ">📊 Dashboard</a>
+          <a href="ministerios.html" class="nav-link ">⛪ Ministerios</a>
+          <a href="tipos.html" class="nav-link nav-link--active">🏷️ Tipos</a>
+          <a href="eventos.html" class="nav-link ">📅 Eventos</a>
+          <a href="finanzas.html" class="nav-link ">💰 Finanzas</a>
+          
+    </nav>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-right">
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
+      
+    </div>
+
+    <!-- HAMBURGUESA -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+
+  </div>
+</header>
+
+<main class="tipos-main">
+
+  <div class="tipos-toolbar">
+    <div>
+      <h2 class="tipos-page-title">🏷️ Tipos de Personas</h2>
+      <p class="tipos-desc">Define los tipos de personas de tu iglesia. Estos aparecerán como opciones al registrar un miembro.</p>
+    </div>
+    <button id="btnNuevoTipo" class="btn btn-primary">+ Nuevo Tipo</button>
+  </div>
+
+  <!-- FORMULARIO RÁPIDO -->
+  <div class="tipos-quick-form" id="quickForm" style="display:none">
+    <input id="quickNombre" type="text" placeholder="Nombre del tipo (ej: Diácono, Adolescente…)" autocomplete="off"/>
+    <input id="quickColor"  type="color" value="#C9A84C" title="Color"/>
+    <button class="btn btn-primary" id="btnGuardarQuick">Guardar</button>
+    <button class="btn btn-ghost"   id="btnCancelarQuick">Cancelar</button>
+  </div>
+
+  <!-- LISTA DE TIPOS -->
+  <div id="tiposList" class="tipos-list"></div>
+
+  <!-- NOTA -->
+  <div class="tipos-nota">
+    💡 <strong>Tipos predeterminados</strong> (Activo, Visitante, Inactivo, Líder, Pastor) siempre están disponibles aunque no aparezcan aquí.
+  </div>
+
+</main>
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modalEditTipo">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2>Editar Tipo</h2>
+      <button class="modal-close" id="btnCerrarEditTipo">✕</button>
+    </div>
+    <form id="editTipoForm" novalidate>
+      <input type="hidden" id="editTipoId"/>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Nombre *</label>
+        <input id="editTipoNombre" type="text" placeholder="Nombre del tipo" required/>
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Descripción</label>
+        <input id="editTipoDesc" type="text" placeholder="Descripción opcional"/>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Color</label>
+        <input id="editTipoColor" type="color" value="#C9A84C"/>
+      </div>
+      <div class="form-footer">
+        <button type="button" class="btn btn-ghost" id="btnCancelarEditTipo">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+function showLoader(t){ document.getElementById("loaderTxt").textContent=t||"Cargando…"; document.getElementById("loaderOverlay").classList.add("active"); }
+function hideLoader() { document.getElementById("loaderOverlay").classList.remove("active"); }
+
+// ── AUTH ──
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  let rol = "colaborador";
+  let nombre = "";
+
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    nombre = data.nombre || user.email.split("@")[0];
+    rol    = data.rol    || "colaborador";
+  } catch(e) {
+    nombre = user.email.split("@")[0];
+  }
+
+  // ── CONTROL DE ACCESO ──
+  const rolesPermitidos = ["admin", "colaborador"];
+  if (!rolesPermitidos.includes(rol)) {
+    // No tiene permiso — redirigir
+    window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
+    return;
+  }
+
+  // ── Mostrar página (oculta hasta verificar rol) ──
+  document.body.classList.add("auth-ok");
+
+  // ── Mostrar nombre ──
+  const el = document.getElementById("userNombre");
+  if (el) el.textContent = "👤 " + nombre;
+
+  // ── Ajustar nav según rol ──
+  if (rol === "colaborador") {
+    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "finanzas") {
+    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
+      if (a.classList.contains("nav-link")) a.style.display = "none";
+    });
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "admin") {
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+  }
+
+  // ── Cargar contenido ──
+  loadTipos();
+});
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if(!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut(); window.location.href="login.html";
+});
+
+// ══════════════════════════════════════
+//  CARGAR TIPOS
+// ══════════════════════════════════════
+async function loadTipos() {
+  showLoader("Cargando tipos…");
+  try {
+    const snap = await db.collection("tiposPersona").orderBy("nombre").get();
+    const tipos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTipos(tipos);
+  } catch(e) {
+    document.getElementById("tiposList").innerHTML =
+      `<div class="state-box state-error"><p>Error: ${e.message}</p></div>`;
+  } finally {
+    hideLoader();
+  }
+}
+
+// ══════════════════════════════════════
+//  RENDER LISTA
+// ══════════════════════════════════════
+function renderTipos(tipos) {
+  const lista = document.getElementById("tiposList");
+  if (tipos.length === 0) {
+    lista.innerHTML = `<div class="tipos-empty">No hay tipos personalizados aún. ¡Crea el primero!</div>`;
+    return;
+  }
+  lista.innerHTML = tipos.map(t => `
+    <div class="tipo-item">
+      <div class="tipo-color-dot" style="background:${t.color||"#C9A84C"}"></div>
+      <div class="tipo-info">
+        <strong>${t.nombre}</strong>
+        ${t.descripcion ? `<span>${t.descripcion}</span>` : ""}
+      </div>
+      <div class="tipo-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openEditTipo('${t.id}','${t.nombre}','${t.descripcion||""}','${t.color||"#C9A84C"}')">✏️ Editar</button>
+        <button class="btn btn-ghost btn-sm danger-btn" onclick="deleteTipo('${t.id}','${t.nombre}')">✕ Eliminar</button>
+      </div>
+    </div>`).join("");
+}
+
+// ══════════════════════════════════════
+//  FORMULARIO RÁPIDO (nuevo tipo)
+// ══════════════════════════════════════
+document.getElementById("btnNuevoTipo").onclick = () => {
+  const form = document.getElementById("quickForm");
+  form.style.display = form.style.display === "none" ? "flex" : "none";
+  document.getElementById("quickNombre").focus();
+};
+document.getElementById("btnCancelarQuick").onclick = () => {
+  document.getElementById("quickForm").style.display = "none";
+  document.getElementById("quickNombre").value = "";
+};
+document.getElementById("btnGuardarQuick").onclick = async () => {
+  const nombre = document.getElementById("quickNombre").value.trim();
+  const color  = document.getElementById("quickColor").value;
+  if (!nombre) { alert("Escribe un nombre."); return; }
+  showLoader("Guardando…");
+  try {
+    await db.collection("tiposPersona").add({
+      nombre, color,
+      creadoEn: new Date().toISOString()
+    });
+    document.getElementById("quickNombre").value = "";
+    document.getElementById("quickForm").style.display = "none";
+    await loadTipos();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+};
+
+// Enter en el input rápido
+document.getElementById("quickNombre").onkeydown = e => {
+  if (e.key === "Enter") document.getElementById("btnGuardarQuick").click();
+};
+
+// ══════════════════════════════════════
+//  EDITAR TIPO
+// ══════════════════════════════════════
+function openEditTipo(id, nombre, desc, color) {
+  document.getElementById("editTipoId").value     = id;
+  document.getElementById("editTipoNombre").value = nombre;
+  document.getElementById("editTipoDesc").value   = desc;
+  document.getElementById("editTipoColor").value  = color;
+  document.getElementById("modalEditTipo").classList.add("open");
+}
+function closeEditTipo() {
+  document.getElementById("modalEditTipo").classList.remove("open");
+}
+document.getElementById("btnCerrarEditTipo").onclick  = closeEditTipo;
+document.getElementById("btnCancelarEditTipo").onclick = closeEditTipo;
+document.getElementById("modalEditTipo").onclick = e => {
+  if(e.target===e.currentTarget) closeEditTipo();
+};
+document.getElementById("editTipoForm").onsubmit = async e => {
+  e.preventDefault();
+  const id     = document.getElementById("editTipoId").value;
+  const nombre = document.getElementById("editTipoNombre").value.trim();
+  const desc   = document.getElementById("editTipoDesc").value.trim();
+  const color  = document.getElementById("editTipoColor").value;
+  if (!nombre) { alert("El nombre es obligatorio."); return; }
+  showLoader("Guardando…");
+  try {
+    await db.collection("tiposPersona").doc(id).update({ nombre, descripcion: desc, color });
+    closeEditTipo();
+    await loadTipos();
+  } catch(err) { alert("Error: "+err.message); }
+  finally { hideLoader(); }
+};
+
+// ══════════════════════════════════════
+//  ELIMINAR TIPO
+// ══════════════════════════════════════
+async function deleteTipo(id, nombre) {
+  if (!confirm(`¿Eliminar el tipo "${nombre}"?`)) return;
+  showLoader("Eliminando…");
+  try {
+    await db.collection("tiposPersona").doc(id).delete();
+    await loadTipos();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+</script>
+
+<!-- BOTTOM NAV MÓVIL -->
+<nav class="bottom-nav">
+  <a href="index.html" class="">
+    <span class="bnav-icon">👥</span>Miembros
+  </a>
+  <a href="dashboard.html" class="">
+    <span class="bnav-icon">📊</span>Dashboard
+  </a>
+  <a href="ministerios.html" class="">
+    <span class="bnav-icon">⛪</span>Ministerios
+  </a>
+  <a href="eventos.html" class="">
+    <span class="bnav-icon">📅</span>Eventos
+  </a>
+  <a href="finanzas.html" class="">
+    <span class="bnav-icon">💰</span>Finanzas
+  </a>
+</nav>
+
+</body>
+</html>

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Finanzas – CLM Puente Piedra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/finanzas.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Ocultar página hasta verificar rol */
+    body { visibility: hidden; }
+    body.auth-ok { visibility: visible; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo"><img src="LOGOCLM.png" alt="CLM"/></div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+
+    <!-- LOGO -->
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+
+    <!-- NAV CENTRAL -->
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html" class="nav-link ">👥 Miembros</a>
+          <a href="dashboard.html" class="nav-link ">📊 Dashboard</a>
+          <a href="ministerios.html" class="nav-link ">⛪ Ministerios</a>
+          <a href="tipos.html" class="nav-link ">🏷️ Tipos</a>
+          <a href="eventos.html" class="nav-link ">📅 Eventos</a>
+          <a href="finanzas.html" class="nav-link nav-link--active">💰 Finanzas</a>
+          
+    </nav>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-right">
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
+      
+    </div>
+
+    <!-- HAMBURGUESA -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+
+  </div>
+</header>
+
+<main class="fin-main">
+
+  <!-- STATS -->
+  <div class="stats-bar" id="finStats"></div>
+
+  <!-- TOOLBAR -->
+  <div class="fin-toolbar">
+    <div class="fin-tabs">
+      <button class="fin-tab active" id="tabHistorial" onclick="switchTab('historial')">📋 Historial</button>
+      <button class="fin-tab" id="tabResumen" onclick="switchTab('resumen')">📊 Resumen</button>
+    </div>
+    <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+      <select id="filtroMes" class="filter-select">
+        <option value="">Todos los meses</option>
+      </select>
+      <select id="filtroTipo" class="filter-select">
+        <option value="">Todos los tipos</option>
+        <option value="Diezmo">Diezmo</option>
+        <option value="Ofrenda">Ofrenda</option>
+        <option value="Donación">Donación</option>
+        <option value="Otro">Otro</option>
+      </select>
+      <button id="btnNuevoReg" class="btn btn-primary">+ Registrar</button>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="vistaHistorial">
+    <div id="registrosLista" class="fin-lista"></div>
+  </div>
+
+  <!-- RESUMEN -->
+  <div id="vistaResumen" style="display:none">
+    <div class="fin-resumen-grid">
+      <div class="fin-card fin-card--full">
+        <h3 class="fin-card-title">💰 Ingresos por Mes</h3>
+        <div style="height:280px"><canvas id="chartFinMeses"></canvas></div>
+      </div>
+      <div class="fin-card">
+        <h3 class="fin-card-title">🍩 Por Tipo</h3>
+        <div style="max-width:220px;margin:0 auto"><canvas id="chartFinTipo"></canvas></div>
+        <div id="legendFinTipo" class="chart-legend" style="margin-top:1rem"></div>
+      </div>
+      <div class="fin-card">
+        <h3 class="fin-card-title">🏆 Top Contribuyentes</h3>
+        <div id="topContrib"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL NUEVO REGISTRO -->
+<div class="modal-overlay" id="modalReg">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalRegTitle">Nuevo Registro</h2>
+      <button class="modal-close" id="btnCerrarReg">✕</button>
+    </div>
+    <form id="regForm" novalidate>
+      <input type="hidden" id="regEditId"/>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Miembro</label>
+          <select id="regMiembro">
+            <option value="">— Anónimo / General —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="regTipo">
+            <option value="Diezmo">💚 Diezmo</option>
+            <option value="Ofrenda">💛 Ofrenda</option>
+            <option value="Donación">💙 Donación</option>
+            <option value="Otro">⚪ Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Monto (S/) *</label>
+          <input id="regMonto" type="number" min="0" step="0.01" placeholder="0.00" required/>
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input id="regFecha" type="date" required/>
+        </div>
+        <div class="form-group">
+          <label>Método de Pago</label>
+          <select id="regMetodo">
+            <option value="Efectivo">💵 Efectivo</option>
+            <option value="Transferencia">🏦 Transferencia</option>
+            <option value="Yape">📱 Yape</option>
+            <option value="Plin">📱 Plin</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label>Nota</label>
+          <input id="regNota" type="text" placeholder="Observación opcional…"/>
+        </div>
+      </div>
+      <div class="form-footer">
+        <button type="button" class="btn btn-ghost" id="btnCancelarReg">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnGuardarReg">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+function showLoader(t){ document.getElementById("loaderTxt").textContent=t||"Cargando…"; document.getElementById("loaderOverlay").classList.add("active"); }
+function hideLoader() { document.getElementById("loaderOverlay").classList.remove("active"); }
+
+// ── AUTH ──
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  let rol = "colaborador";
+  let nombre = "";
+
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    nombre = data.nombre || user.email.split("@")[0];
+    rol    = data.rol    || "colaborador";
+  } catch(e) {
+    nombre = user.email.split("@")[0];
+  }
+
+  // ── CONTROL DE ACCESO ──
+  const rolesPermitidos = ["admin", "finanzas"];
+  if (!rolesPermitidos.includes(rol)) {
+    // No tiene permiso — redirigir
+    window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
+    return;
+  }
+
+  // ── Mostrar página (oculta hasta verificar rol) ──
+  document.body.classList.add("auth-ok");
+
+  // ── Mostrar nombre ──
+  const el = document.getElementById("userNombre");
+  if (el) el.textContent = "👤 " + nombre;
+
+  // ── Ajustar nav según rol ──
+  if (rol === "colaborador") {
+    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "finanzas") {
+    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
+      if (a.classList.contains("nav-link")) a.style.display = "none";
+    });
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "admin") {
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+  }
+
+  // ── Cargar contenido ──
+  loadFinanzas();
+});
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if(!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut(); window.location.href="login.html";
+});
+
+// ── HELPERS ──
+function fmtDate(d) { if(!d)return"–"; const[y,m,day]=d.split("-"); return`${day}/${m}/${y}`; }
+function fmtMoney(n) { return "S/ " + Number(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,","); }
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const TIPO_COLORS = { Diezmo:"#3FB950", Ofrenda:"#E3B341", Donación:"#58A6FF", Otro:"#8B949E" };
+
+let todosLosRegistros = [];
+let todosLosMiembros  = [];
+let tabActual         = "historial";
+let chartMeses = null, chartTipo = null;
+
+// ══════════════════════════════════════
+//  CARGAR
+// ══════════════════════════════════════
+async function loadFinanzas() {
+  showLoader("Cargando finanzas…");
+  try {
+    const [snapReg, snapMiembros] = await Promise.all([
+      db.collection("finanzas").orderBy("fecha","desc").get(),
+      db.collection("miembros").orderBy("nombre").get()
+    ]);
+    todosLosRegistros = snapReg.docs.map(d=>({id:d.id,...d.data()}));
+    todosLosMiembros  = snapMiembros.docs.map(d=>({id:d.id,...d.data()}));
+
+    poblarSelectMiembro();
+    poblarFiltroMes();
+    renderStats();
+    renderHistorial();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+
+function poblarSelectMiembro() {
+  const sel = document.getElementById("regMiembro");
+  while(sel.options.length > 1) sel.remove(1);
+  todosLosMiembros.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.id; opt.textContent = m.nombre;
+    sel.appendChild(opt);
+  });
+}
+
+function poblarFiltroMes() {
+  const meses = [...new Set(todosLosRegistros.map(r => r.fecha ? r.fecha.slice(0,7) : null).filter(Boolean))].sort().reverse();
+  const sel = document.getElementById("filtroMes");
+  while(sel.options.length > 1) sel.remove(1);
+  meses.forEach(m => {
+    const [y, mo] = m.split("-");
+    const opt = document.createElement("option");
+    opt.value = m; opt.textContent = `${MESES[parseInt(mo)-1]} ${y}`;
+    sel.appendChild(opt);
+  });
+}
+
+// ══════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════
+function renderStats() {
+  const total     = todosLosRegistros.reduce((a,r)=>a+Number(r.monto||0),0);
+  const diezmos   = todosLosRegistros.filter(r=>r.tipo==="Diezmo").reduce((a,r)=>a+Number(r.monto||0),0);
+  const ofrendas  = todosLosRegistros.filter(r=>r.tipo==="Ofrenda").reduce((a,r)=>a+Number(r.monto||0),0);
+  const esteMes   = todosLosRegistros
+    .filter(r=>r.fecha&&r.fecha.slice(0,7)===new Date().toISOString().slice(0,7))
+    .reduce((a,r)=>a+Number(r.monto||0),0);
+
+  document.getElementById("finStats").innerHTML = `
+    <div class="stat-card"><span class="stat-icon">💰</span><div><div class="stat-num">${fmtMoney(total)}</div><div class="stat-lbl">Total Acumulado</div></div></div>
+    <div class="stat-card"><span class="stat-icon">💚</span><div><div class="stat-num">${fmtMoney(diezmos)}</div><div class="stat-lbl">Total Diezmos</div></div></div>
+    <div class="stat-card"><span class="stat-icon">💛</span><div><div class="stat-num">${fmtMoney(ofrendas)}</div><div class="stat-lbl">Total Ofrendas</div></div></div>
+    <div class="stat-card"><span class="stat-icon">📅</span><div><div class="stat-num">${fmtMoney(esteMes)}</div><div class="stat-lbl">Este Mes</div></div></div>`;
+}
+
+// ══════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════
+function switchTab(tab) {
+  tabActual = tab;
+  document.querySelectorAll(".fin-tab").forEach(t=>t.classList.remove("active"));
+  document.getElementById(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.add("active");
+  if (tab === "historial") {
+    document.getElementById("vistaHistorial").style.display = "";
+    document.getElementById("vistaResumen").style.display   = "none";
+    renderHistorial();
+  } else {
+    document.getElementById("vistaHistorial").style.display = "none";
+    document.getElementById("vistaResumen").style.display   = "";
+    renderResumen();
+  }
+}
+
+// ══════════════════════════════════════
+//  HISTORIAL
+// ══════════════════════════════════════
+function getRegistrosFiltrados() {
+  const mes  = document.getElementById("filtroMes").value;
+  const tipo = document.getElementById("filtroTipo").value;
+  return todosLosRegistros.filter(r =>
+    (!mes  || (r.fecha||"").startsWith(mes)) &&
+    (!tipo || r.tipo === tipo)
+  );
+}
+
+function renderHistorial() {
+  const lista = document.getElementById("registrosLista");
+  const regs  = getRegistrosFiltrados();
+  if (regs.length === 0) {
+    lista.innerHTML = `<div class="state-box"><div class="state-icon">💰</div><p>No hay registros aún.</p></div>`;
+    return;
+  }
+  const subtotal = regs.reduce((a,r)=>a+Number(r.monto||0),0);
+  lista.innerHTML = `
+    <div class="fin-subtotal">Mostrando ${regs.length} registros · Total: <strong>${fmtMoney(subtotal)}</strong></div>
+    <div class="fin-tabla-wrap">
+      <table class="fin-tabla">
+        <thead><tr>
+          <th>Fecha</th><th>Miembro</th><th>Tipo</th><th>Método</th><th>Nota</th><th>Monto</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${regs.map(r => {
+            const miembro = todosLosMiembros.find(m=>m.id===r.miembroId);
+            return `<tr>
+              <td>${fmtDate(r.fecha)}</td>
+              <td>${miembro ? miembro.nombre : "Anónimo"}</td>
+              <td><span class="fin-tipo-badge" style="color:${TIPO_COLORS[r.tipo]||"#8B949E"}">${r.tipo||"–"}</span></td>
+              <td><span class="fin-metodo">${r.metodo||"–"}</span></td>
+              <td class="fin-nota">${r.nota||"–"}</td>
+              <td class="fin-monto">${fmtMoney(r.monto)}</td>
+              <td>
+                <button class="btn-icon edit" onclick="editarReg('${r.id}')">✏️</button>
+                <button class="btn-icon danger" onclick="eliminarReg('${r.id}')">🗑️</button>
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ══════════════════════════════════════
+//  RESUMEN / GRÁFICOS
+// ══════════════════════════════════════
+function renderResumen() {
+  // Gráfico por mes
+  const porMes = {};
+  MESES.forEach(m => porMes[m] = 0);
+  todosLosRegistros.forEach(r => {
+    if (!r.fecha) return;
+    porMes[MESES[parseInt(r.fecha.slice(5,7))-1]] += Number(r.monto||0);
+  });
+
+  if (chartMeses) chartMeses.destroy();
+  chartMeses = new Chart(document.getElementById("chartFinMeses").getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: MESES,
+      datasets: [{
+        label: "S/",
+        data: Object.values(porMes),
+        backgroundColor: "rgba(201,168,76,.25)",
+        borderColor: "#C9A84C", borderWidth: 2, borderRadius: 6
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ grid:{color:"rgba(255,255,255,.05)"}, ticks:{color:"#8B949E"} },
+        y:{ grid:{color:"rgba(255,255,255,.05)"}, ticks:{color:"#8B949E",callback:v=>"S/ "+v}, beginAtZero:true }
+      }
+    }
+  });
+
+  // Gráfico por tipo
+  const porTipo = {};
+  todosLosRegistros.forEach(r => { porTipo[r.tipo||"Otro"]=(porTipo[r.tipo||"Otro"]||0)+Number(r.monto||0); });
+  const tipoLabels = Object.keys(porTipo);
+  const tipoData   = Object.values(porTipo);
+  const tipoColors = tipoLabels.map(t=>TIPO_COLORS[t]||"#8B949E");
+
+  if (chartTipo) chartTipo.destroy();
+  chartTipo = new Chart(document.getElementById("chartFinTipo").getContext("2d"), {
+    type: "doughnut",
+    data: { labels: tipoLabels, datasets: [{ data: tipoData, backgroundColor: tipoColors, borderWidth:2, borderColor:"#161B22" }] },
+    options: { cutout:"65%", responsive:true, plugins:{ legend:{display:false} } }
+  });
+  document.getElementById("legendFinTipo").innerHTML = tipoLabels.map((l,i)=>
+    `<div class="legend-item"><span class="legend-dot" style="background:${tipoColors[i]}"></span><span>${l} <strong>${fmtMoney(tipoData[i])}</strong></span></div>`
+  ).join("");
+
+  // Top contribuyentes
+  const porMiembro = {};
+  todosLosRegistros.forEach(r => {
+    if (!r.miembroId) return;
+    porMiembro[r.miembroId] = (porMiembro[r.miembroId]||0) + Number(r.monto||0);
+  });
+  const top = Object.entries(porMiembro).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById("topContrib").innerHTML = top.length === 0
+    ? `<p style="color:var(--text2);font-size:.85rem">Sin datos aún.</p>`
+    : top.map(([id,monto],i) => {
+        const m = todosLosMiembros.find(x=>x.id===id);
+        return `<div class="top-item">
+          <span class="top-rank">${i+1}</span>
+          <span class="top-nombre">${m?m.nombre:"Desconocido"}</span>
+          <span class="top-monto">${fmtMoney(monto)}</span>
+        </div>`;
+      }).join("");
+}
+
+// ══════════════════════════════════════
+//  MODAL REGISTRO
+// ══════════════════════════════════════
+function openModalReg(reg) {
+  document.getElementById("modalRegTitle").textContent = reg ? "Editar Registro" : "Nuevo Registro";
+  document.getElementById("regEditId").value   = reg ? reg.id         : "";
+  document.getElementById("regMiembro").value  = reg ? reg.miembroId  : "";
+  document.getElementById("regTipo").value     = reg ? reg.tipo       : "Diezmo";
+  document.getElementById("regMonto").value    = reg ? reg.monto      : "";
+  document.getElementById("regFecha").value    = reg ? reg.fecha      : new Date().toISOString().slice(0,10);
+  document.getElementById("regMetodo").value   = reg ? reg.metodo     : "Efectivo";
+  document.getElementById("regNota").value     = reg ? reg.nota       : "";
+  document.getElementById("modalReg").classList.add("open");
+}
+function closeModalReg() { document.getElementById("modalReg").classList.remove("open"); }
+
+document.getElementById("btnNuevoReg").onclick    = () => openModalReg(null);
+document.getElementById("btnCerrarReg").onclick   = closeModalReg;
+document.getElementById("btnCancelarReg").onclick = closeModalReg;
+document.getElementById("modalReg").onclick = e => { if(e.target===e.currentTarget) closeModalReg(); };
+
+document.getElementById("regForm").onsubmit = async e => {
+  e.preventDefault();
+  const btn   = document.getElementById("btnGuardarReg");
+  const monto = parseFloat(document.getElementById("regMonto").value);
+  const fecha = document.getElementById("regFecha").value;
+  if (!monto || monto <= 0) { alert("El monto debe ser mayor a 0."); return; }
+  if (!fecha) { alert("La fecha es obligatoria."); return; }
+  btn.disabled = true; btn.textContent = "Guardando…";
+  showLoader("Guardando…");
+  const editId = document.getElementById("regEditId").value;
+  const data = {
+    miembroId: document.getElementById("regMiembro").value || null,
+    tipo:      document.getElementById("regTipo").value,
+    monto,
+    fecha,
+    metodo:    document.getElementById("regMetodo").value,
+    nota:      document.getElementById("regNota").value.trim(),
+  };
+  try {
+    if (editId) {
+      await db.collection("finanzas").doc(editId).update(data);
+    } else {
+      data.creadoEn = new Date().toISOString();
+      await db.collection("finanzas").add(data);
+    }
+    closeModalReg();
+    await loadFinanzas();
+    if (tabActual === "resumen") renderResumen();
+  } catch(err) { alert("Error: "+err.message); }
+  finally { btn.disabled=false; btn.textContent="Guardar"; hideLoader(); }
+};
+
+function editarReg(id) {
+  const reg = todosLosRegistros.find(r=>r.id===id);
+  openModalReg(reg);
+}
+
+async function eliminarReg(id) {
+  if (!confirm("¿Eliminar este registro?")) return;
+  showLoader("Eliminando…");
+  try {
+    await db.collection("finanzas").doc(id).delete();
+    await loadFinanzas();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+
+// ── FILTROS ──
+document.getElementById("filtroMes").onchange  = renderHistorial;
+document.getElementById("filtroTipo").onchange = renderHistorial;
+</script>
+
+<!-- BOTTOM NAV MÓVIL -->
+<nav class="bottom-nav">
+  <a href="index.html" class="">
+    <span class="bnav-icon">👥</span>Miembros
+  </a>
+  <a href="dashboard.html" class="">
+    <span class="bnav-icon">📊</span>Dashboard
+  </a>
+  <a href="ministerios.html" class="">
+    <span class="bnav-icon">⛪</span>Ministerios
+  </a>
+  <a href="eventos.html" class="">
+    <span class="bnav-icon">📅</span>Eventos
+  </a>
+  <a href="finanzas.html" class="active">
+    <span class="bnav-icon">💰</span>Finanzas
+  </a>
+</nav>
+
+</body>
+</html>

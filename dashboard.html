@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard – CLM Puente Piedra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/dashboard.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Ocultar página hasta verificar rol */
+    body { visibility: hidden; }
+    body.auth-ok { visibility: visible; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo"><img src="LOGOCLM.png" alt="CLM"/></div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando datos…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+
+    <!-- LOGO -->
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+
+    <!-- NAV CENTRAL -->
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html" class="nav-link ">👥 Miembros</a>
+          <a href="dashboard.html" class="nav-link nav-link--active">📊 Dashboard</a>
+          <a href="ministerios.html" class="nav-link ">⛪ Ministerios</a>
+          <a href="tipos.html" class="nav-link ">🏷️ Tipos</a>
+          <a href="eventos.html" class="nav-link ">📅 Eventos</a>
+          <a href="finanzas.html" class="nav-link ">💰 Finanzas</a>
+          
+    </nav>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-right">
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
+      
+    </div>
+
+    <!-- HAMBURGUESA -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+
+  </div>
+</header>
+
+<main class="dash-main">
+
+  <!-- STATS TOP -->
+  <div class="stats-bar" id="statsTop"></div>
+
+  <!-- GRÁFICOS ROW 1 -->
+  <div class="dash-grid">
+    <div class="dash-card">
+      <h3 class="dash-card-title">Estado de Miembros</h3>
+      <div class="chart-wrap"><canvas id="chartEstado"></canvas></div>
+      <div id="legendEstado" class="chart-legend"></div>
+    </div>
+    <div class="dash-card">
+      <h3 class="dash-card-title">Ministerios</h3>
+      <div class="chart-wrap"><canvas id="chartMinisterio"></canvas></div>
+      <div id="legendMinisterio" class="chart-legend"></div>
+    </div>
+    <div class="dash-card">
+      <h3 class="dash-card-title">Género</h3>
+      <div class="chart-wrap"><canvas id="chartGenero"></canvas></div>
+      <div id="legendGenero" class="chart-legend"></div>
+    </div>
+  </div>
+
+  <!-- GRÁFICO LÍNEA -->
+  <div class="dash-card dash-card--full">
+    <h3 class="dash-card-title">Miembros Registrados por Mes</h3>
+    <div class="chart-wrap chart-wrap--tall"><canvas id="chartMeses"></canvas></div>
+  </div>
+
+  <!-- TABLA CUMPLEAÑOS PRÓXIMOS -->
+  <div class="dash-card dash-card--full">
+    <h3 class="dash-card-title">🎂 Próximos Cumpleaños (30 días)</h3>
+    <div id="bdayTable"></div>
+  </div>
+
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+function showLoader(t) { document.getElementById("loaderTxt").textContent=t||"Cargando…"; document.getElementById("loaderOverlay").classList.add("active"); }
+function hideLoader()  { document.getElementById("loaderOverlay").classList.remove("active"); }
+
+// ── COLORES ──
+const COLORS = ["#C9A84C","#58A6FF","#3FB950","#F85149","#E3B341","#BC8CFF","#79C0FF","#56D364","#FF7B72","#D2A8FF"];
+
+// ── AUTH ──
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  let rol = "colaborador";
+  let nombre = "";
+
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    nombre = data.nombre || user.email.split("@")[0];
+    rol    = data.rol    || "colaborador";
+  } catch(e) {
+    nombre = user.email.split("@")[0];
+  }
+
+  // ── CONTROL DE ACCESO ──
+  const rolesPermitidos = ["admin", "colaborador"];
+  if (!rolesPermitidos.includes(rol)) {
+    // No tiene permiso — redirigir
+    window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
+    return;
+  }
+
+  // ── Mostrar página (oculta hasta verificar rol) ──
+  document.body.classList.add("auth-ok");
+
+  // ── Mostrar nombre ──
+  const el = document.getElementById("userNombre");
+  if (el) el.textContent = "👤 " + nombre;
+
+  // ── Ajustar nav según rol ──
+  if (rol === "colaborador") {
+    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "finanzas") {
+    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
+      if (a.classList.contains("nav-link")) a.style.display = "none";
+    });
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "admin") {
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+  }
+
+  // ── Cargar contenido ──
+  loadDashboard();
+});
+
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if (!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut(); window.location.href = "login.html";
+});
+
+// ── HELPERS ──
+function calcAge(dob) {
+  if (!dob) return null;
+  const [y, mo, d] = dob.split("-").map(Number);
+  const n = new Date();
+  let a = n.getFullYear() - y;
+  if (n < new Date(n.getFullYear(), mo - 1, d)) a--;
+  return a;
+}
+function fmtDate(d) {
+  if (!d) return "–";
+  const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`;
+}
+function daysUntil(dob) {
+  if (!dob) return null;
+  const [y, mo, d] = dob.split("-").map(Number);
+  const n = new Date();
+  let next = new Date(n.getFullYear(), mo - 1, d);
+  if (next < n) next.setFullYear(n.getFullYear() + 1);
+  return Math.ceil((next - n) / (1000 * 60 * 60 * 24));
+}
+const MESES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+// ── LOAD ──
+async function loadDashboard() {
+  showLoader("Cargando datos…");
+  try {
+    const snap = await db.collection("miembros").get();
+    const members = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    hideLoader();
+    renderStats(members);
+    renderEstado(members);
+    renderMinisterio(members);
+    renderGenero(members);
+    renderMeses(members);
+    renderBirthdays(members);
+  } catch(e) {
+    hideLoader();
+    alert("Error: " + e.message);
+  }
+}
+
+// ── STATS TOP ──
+function renderStats(members) {
+  const total    = members.length;
+  const activos  = members.filter(m=>(m.estado||"").toLowerCase()==="activo").length;
+  const lideres  = members.filter(m=>["lider","pastor"].includes((m.estado||"").toLowerCase())).length;
+  const bdayHoy  = members.filter(m=>{ if(!m.fechaNacimiento)return false; const b=new Date(m.fechaNacimiento),n=new Date(); return b.getMonth()===n.getMonth()&&b.getDate()===n.getDate(); }).length;
+
+  document.getElementById("statsTop").innerHTML = `
+    <div class="stat-card"><span class="stat-icon">👥</span><div><div class="stat-num">${total}</div><div class="stat-lbl">Total Miembros</div></div></div>
+    <div class="stat-card"><span class="stat-icon">✅</span><div><div class="stat-num">${activos}</div><div class="stat-lbl">Activos</div></div></div>
+    <div class="stat-card"><span class="stat-icon">⭐</span><div><div class="stat-num">${lideres}</div><div class="stat-lbl">Líderes / Pastores</div></div></div>
+    <div class="stat-card"><span class="stat-icon">🎂</span><div><div class="stat-num">${bdayHoy}</div><div class="stat-lbl">Cumpleaños Hoy</div></div></div>`;
+}
+
+// ── DONUT helper ──
+function makeDonut(canvasId, legendId, labels, data) {
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  const colors = COLORS.slice(0, labels.length);
+  new Chart(ctx, {
+    type: "doughnut",
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: "#161B22" }] },
+    options: {
+      cutout: "65%", responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed/data.reduce((a,b)=>a+b,0)*100)}%)` }
+      }}
+    }
+  });
+  // Custom legend
+  const legend = document.getElementById(legendId);
+  legend.innerHTML = labels.map((l,i) =>
+    `<div class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span><span>${l} <strong>${data[i]}</strong></span></div>`
+  ).join("");
+}
+
+// ── ESTADO ──
+function renderEstado(members) {
+  const map = {};
+  members.forEach(m => { const e=m.estado||"Sin estado"; map[e]=(map[e]||0)+1; });
+  makeDonut("chartEstado","legendEstado", Object.keys(map), Object.values(map));
+}
+
+// ── MINISTERIO ──
+function renderMinisterio(members) {
+  const map = {};
+  members.forEach(m => { const e=m.ministerio||"Sin ministerio"; map[e]=(map[e]||0)+1; });
+  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  makeDonut("chartMinisterio","legendMinisterio", sorted.map(x=>x[0]), sorted.map(x=>x[1]));
+}
+
+// ── GÉNERO ──
+function renderGenero(members) {
+  const masc = members.filter(m=>["hombre","masculino","m","varón","varon"].includes((m.genero||"").toLowerCase())).length;
+  const fem  = members.filter(m=>["mujer","femenino","f","dama"].includes((m.genero||"").toLowerCase())).length;
+  const nd   = members.length - masc - fem;
+  const labels=[], data=[];
+  if(masc>0){labels.push("Hombres");data.push(masc);}
+  if(fem>0) {labels.push("Mujeres");data.push(fem);}
+  if(nd>0)  {labels.push("No especificado");data.push(nd);}
+  makeDonut("chartGenero","legendGenero", labels, data);
+}
+
+// ── MESES ──
+function renderMeses(members) {
+  const map = {};
+  MESES.forEach(m => map[m]=0);
+  members.forEach(m => {
+    if (!m.creadoEn) return;
+    const mes = new Date(m.creadoEn).getMonth();
+    map[MESES[mes]]++;
+  });
+  const ctx = document.getElementById("chartMeses").getContext("2d");
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: MESES,
+      datasets: [{
+        label: "Miembros registrados",
+        data: Object.values(map),
+        backgroundColor: "rgba(201,168,76,.25)",
+        borderColor: "#C9A84C",
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: "rgba(255,255,255,.05)" }, ticks: { color: "#8B949E" } },
+        y: { grid: { color: "rgba(255,255,255,.05)" }, ticks: { color: "#8B949E", stepSize: 1 }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ── CUMPLEAÑOS PRÓXIMOS ──
+function renderBirthdays(members) {
+  const proximos = members
+    .map(m => ({ ...m, dias: daysUntil(m.fechaNacimiento) }))
+    .filter(m => m.dias !== null && m.dias <= 30)
+    .sort((a,b) => a.dias - b.dias);
+
+  const container = document.getElementById("bdayTable");
+  if (proximos.length === 0) {
+    container.innerHTML = `<p style="color:var(--text2);padding:1rem">No hay cumpleaños en los próximos 30 días.</p>`;
+    return;
+  }
+  container.innerHTML = `
+    <table class="bday-table">
+      <thead><tr><th>Nombre</th><th>Fecha</th><th>Edad que cumple</th><th>Días restantes</th></tr></thead>
+      <tbody>
+        ${proximos.map(m => `
+          <tr>
+            <td><strong>${m.nombre}</strong></td>
+            <td>${fmtDate(m.fechaNacimiento)}</td>
+            <td>${calcAge(m.fechaNacimiento)+1} años</td>
+            <td>${m.dias === 0
+              ? '<span class="bday-tag today">¡Hoy! 🎉</span>'
+              : `<span class="bday-tag">${m.dias} día${m.dias!==1?"s":""}</span>`}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+</script>
+
+<!-- BOTTOM NAV MÓVIL -->
+<nav class="bottom-nav">
+  <a href="index.html" class="">
+    <span class="bnav-icon">👥</span>Miembros
+  </a>
+  <a href="dashboard.html" class="active">
+    <span class="bnav-icon">📊</span>Dashboard
+  </a>
+  <a href="ministerios.html" class="">
+    <span class="bnav-icon">⛪</span>Ministerios
+  </a>
+  <a href="eventos.html" class="">
+    <span class="bnav-icon">📅</span>Eventos
+  </a>
+  <a href="finanzas.html" class="">
+    <span class="bnav-icon">💰</span>Finanzas
+  </a>
+</nav>
+
+</body>
+</html>

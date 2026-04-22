@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Eventos – CLM Puente Piedra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/eventos.css"/>
+  <style>
+    /* Ocultar página hasta verificar rol */
+    body { visibility: hidden; }
+    body.auth-ok { visibility: visible; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo"><img src="LOGOCLM.png" alt="CLM"/></div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+
+    <!-- LOGO -->
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+
+    <!-- NAV CENTRAL -->
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html" class="nav-link ">👥 Miembros</a>
+          <a href="dashboard.html" class="nav-link ">📊 Dashboard</a>
+          <a href="ministerios.html" class="nav-link ">⛪ Ministerios</a>
+          <a href="tipos.html" class="nav-link ">🏷️ Tipos</a>
+          <a href="eventos.html" class="nav-link nav-link--active">📅 Eventos</a>
+          <a href="finanzas.html" class="nav-link ">💰 Finanzas</a>
+          
+    </nav>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-right">
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
+      
+    </div>
+
+    <!-- HAMBURGUESA -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+
+  </div>
+</header>
+
+<main class="ev-main">
+
+  <!-- VISTA LISTA -->
+  <div id="vistaLista">
+    <div class="ev-toolbar">
+      <h2 class="ev-page-title">📅 Eventos</h2>
+      <button id="btnNuevoEv" class="btn btn-primary">+ Nuevo Evento</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="ev-tabs">
+      <button class="ev-tab active" id="tabProximos" onclick="switchTab('proximos')">Próximos</button>
+      <button class="ev-tab" id="tabPasados"  onclick="switchTab('pasados')">Pasados</button>
+      <button class="ev-tab" id="tabTodos"    onclick="switchTab('todos')">Todos</button>
+    </div>
+
+    <div id="eventosGrid" class="ev-grid"></div>
+  </div>
+
+  <!-- VISTA DETALLE -->
+  <div id="vistaDetalle" style="display:none">
+    <div class="ev-toolbar">
+      <button id="btnVolverEv" class="btn btn-ghost">← Volver</button>
+      <button id="btnRegistrarAsist" class="btn btn-primary">✅ Registrar Asistencia</button>
+    </div>
+    <div class="ev-detalle-header" id="detalleHeader"></div>
+    <div class="ev-detalle-grid">
+      <div class="ev-detalle-asist" id="detalleAsist"></div>
+      <div class="ev-detalle-stats" id="detalleStats"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL NUEVO/EDITAR EVENTO -->
+<div class="modal-overlay" id="modalEv">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalEvTitle">Nuevo Evento</h2>
+      <button class="modal-close" id="btnCerrarEv">✕</button>
+    </div>
+    <form id="evForm" novalidate>
+      <input type="hidden" id="evEditId"/>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Nombre del Evento *</label>
+          <input id="evNombre" type="text" placeholder="Ej: Culto Dominical, Retiro de Jóvenes…" required/>
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input id="evFecha" type="date" required/>
+        </div>
+        <div class="form-group">
+          <label>Hora</label>
+          <input id="evHora" type="time"/>
+        </div>
+        <div class="form-group form-full">
+          <label>Lugar</label>
+          <input id="evLugar" type="text" placeholder="Ej: Templo CLM, Auditorio…"/>
+        </div>
+        <div class="form-group form-full">
+          <label>Descripción</label>
+          <input id="evDesc" type="text" placeholder="Breve descripción del evento"/>
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="evTipo">
+            <option value="Culto">⛪ Culto</option>
+            <option value="Retiro">🏕️ Retiro</option>
+            <option value="Actividad">🎉 Actividad</option>
+            <option value="Reunión">👥 Reunión</option>
+            <option value="Conferencia">🎤 Conferencia</option>
+            <option value="Otro">📌 Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input id="evColor" type="color" value="#C9A84C"/>
+        </div>
+      </div>
+      <div class="form-footer">
+        <button type="button" class="btn btn-ghost" id="btnCancelarEv">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnGuardarEv">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL ASISTENCIA -->
+<div class="modal-overlay" id="modalAsist">
+  <div class="modal modal--wide">
+    <div class="modal-header">
+      <h2>Registrar Asistencia</h2>
+      <button class="modal-close" id="btnCerrarAsist">✕</button>
+    </div>
+    <div class="asist-search-bar">
+      <input id="asistSearch" type="text" placeholder="Buscar miembro…"/>
+    </div>
+    <div id="asistLista" class="asist-lista"></div>
+    <div class="form-footer">
+      <button class="btn btn-ghost" id="btnCancelarAsist2">Cancelar</button>
+      <button class="btn btn-primary" id="btnGuardarAsist">Guardar Asistencia</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+function showLoader(t){ document.getElementById("loaderTxt").textContent=t||"Cargando…"; document.getElementById("loaderOverlay").classList.add("active"); }
+function hideLoader() { document.getElementById("loaderOverlay").classList.remove("active"); }
+
+// ── AUTH ──
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  let rol = "colaborador";
+  let nombre = "";
+
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    nombre = data.nombre || user.email.split("@")[0];
+    rol    = data.rol    || "colaborador";
+  } catch(e) {
+    nombre = user.email.split("@")[0];
+  }
+
+  // ── CONTROL DE ACCESO ──
+  const rolesPermitidos = ["admin", "colaborador"];
+  if (!rolesPermitidos.includes(rol)) {
+    // No tiene permiso — redirigir
+    window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
+    return;
+  }
+
+  // ── Mostrar página (oculta hasta verificar rol) ──
+  document.body.classList.add("auth-ok");
+
+  // ── Mostrar nombre ──
+  const el = document.getElementById("userNombre");
+  if (el) el.textContent = "👤 " + nombre;
+
+  // ── Ajustar nav según rol ──
+  if (rol === "colaborador") {
+    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "finanzas") {
+    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
+      if (a.classList.contains("nav-link")) a.style.display = "none";
+    });
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "admin") {
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+  }
+
+  // ── Cargar contenido ──
+  loadEventos();
+});
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if(!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut(); window.location.href="login.html";
+});
+
+// ── HELPERS ──
+function fmtDate(d) {
+  if (!d) return "–";
+  const [y,m,day] = d.split("-");
+  return `${day}/${m}/${y}`;
+}
+function initials(name) {
+  return name.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase();
+}
+const TIPO_ICONS = { Culto:"⛪", Retiro:"🏕️", Actividad:"🎉", Reunión:"👥", Conferencia:"🎤", Otro:"📌" };
+
+let todosLosEventos  = [];
+let todosLosMiembros = [];
+let eventoActual     = null;
+let asistenciaActual = {}; // { miembroId: true/false }
+let tabActual        = "proximos";
+
+// ══════════════════════════════════════
+//  CARGAR
+// ══════════════════════════════════════
+async function loadEventos() {
+  showLoader("Cargando eventos…");
+  try {
+    const [snapEv, snapMiembros] = await Promise.all([
+      db.collection("eventos").orderBy("fecha","desc").get(),
+      db.collection("miembros").orderBy("nombre").get()
+    ]);
+    todosLosEventos  = snapEv.docs.map(d=>({id:d.id,...d.data()}));
+    todosLosMiembros = snapMiembros.docs.map(d=>({id:d.id,...d.data()}));
+    renderGrid();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+
+// ══════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════
+function switchTab(tab) {
+  tabActual = tab;
+  document.querySelectorAll(".ev-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.add("active");
+  renderGrid();
+}
+
+// ══════════════════════════════════════
+//  RENDER GRID
+// ══════════════════════════════════════
+function renderGrid() {
+  const hoy = new Date().toISOString().slice(0,10);
+  let eventos = [...todosLosEventos];
+  if (tabActual === "proximos") eventos = eventos.filter(e => e.fecha >= hoy).reverse();
+  if (tabActual === "pasados")  eventos = eventos.filter(e => e.fecha < hoy);
+
+  const grid = document.getElementById("eventosGrid");
+  if (eventos.length === 0) {
+    grid.innerHTML = `<div class="state-box" style="grid-column:1/-1"><div class="state-icon">📅</div><p>No hay eventos ${tabActual === "proximos" ? "próximos" : tabActual === "pasados" ? "pasados" : ""}.</p></div>`;
+    return;
+  }
+  grid.innerHTML = "";
+  eventos.forEach(ev => {
+    const esProximo = ev.fecha >= hoy;
+    const card = document.createElement("div");
+    card.className = "ev-card";
+    card.innerHTML = `
+      <div class="ev-card-top" style="border-left: 4px solid ${ev.color||"#C9A84C"}">
+        <div class="ev-card-tipo">${TIPO_ICONS[ev.tipo]||"📅"}</div>
+        <div class="ev-card-info">
+          <h3>${ev.nombre}</h3>
+          <span class="ev-fecha">${fmtDate(ev.fecha)}${ev.hora ? " · " + ev.hora : ""}</span>
+          ${ev.lugar ? `<span class="ev-lugar">📍 ${ev.lugar}</span>` : ""}
+        </div>
+        <span class="ev-badge ${esProximo?"ev-badge--proximo":"ev-badge--pasado"}">${esProximo?"Próximo":"Pasado"}</span>
+      </div>
+      ${ev.descripcion ? `<div class="ev-card-desc">${ev.descripcion}</div>` : ""}
+      <div class="ev-card-footer">
+        <span class="ev-asist-count">👥 ${(ev.asistentes||[]).length} asistentes</span>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-ghost btn-sm" onclick="editarEvento('${ev.id}')">✏️</button>
+          <button class="btn btn-ghost btn-sm danger-btn" onclick="eliminarEvento('${ev.id}','${ev.nombre}')">🗑️</button>
+          <button class="btn btn-primary btn-sm" onclick="verDetalleEv('${ev.id}')">Ver →</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════
+//  VER DETALLE
+// ══════════════════════════════════════
+function verDetalleEv(id) {
+  eventoActual = todosLosEventos.find(e=>e.id===id);
+  document.getElementById("vistaLista").style.display   = "none";
+  document.getElementById("vistaDetalle").style.display = "";
+  renderDetalle();
+}
+
+function renderDetalle() {
+  const ev = eventoActual;
+  const asistentes = ev.asistentes || [];
+  const total      = todosLosMiembros.length;
+  const pct        = total > 0 ? Math.round(asistentes.length/total*100) : 0;
+
+  // Header
+  document.getElementById("detalleHeader").innerHTML = `
+    <div class="ev-det-icon" style="background:${ev.color||"#C9A84C"}22;border-color:${ev.color||"#C9A84C"}">
+      ${TIPO_ICONS[ev.tipo]||"📅"}
+    </div>
+    <div class="ev-det-info">
+      <h2>${ev.nombre}</h2>
+      <div class="ev-det-meta">
+        <span>📅 ${fmtDate(ev.fecha)}${ev.hora?" · "+ev.hora:""}</span>
+        ${ev.lugar?`<span>📍 ${ev.lugar}</span>`:""}
+        <span>🏷️ ${ev.tipo||"Evento"}</span>
+      </div>
+      ${ev.descripcion?`<p class="ev-det-desc">${ev.descripcion}</p>`:""}
+    </div>`;
+
+  // Stats
+  document.getElementById("detalleStats").innerHTML = `
+    <div class="ev-stat-box">
+      <div class="ev-stat-num">${asistentes.length}</div>
+      <div class="ev-stat-lbl">Asistieron</div>
+    </div>
+    <div class="ev-stat-box">
+      <div class="ev-stat-num">${total - asistentes.length}</div>
+      <div class="ev-stat-lbl">Ausentes</div>
+    </div>
+    <div class="ev-stat-box">
+      <div class="ev-stat-num">${pct}%</div>
+      <div class="ev-stat-lbl">Asistencia</div>
+    </div>
+    <div class="ev-progress-wrap">
+      <div class="ev-progress-bar" style="width:${pct}%;background:${ev.color||"#C9A84C"}"></div>
+    </div>`;
+
+  // Lista asistentes
+  const miembrosAsist = todosLosMiembros.filter(m=>asistentes.includes(m.id));
+  document.getElementById("detalleAsist").innerHTML = `
+    <h3 class="ev-asist-title">Lista de Asistencia (${asistentes.length})</h3>
+    ${miembrosAsist.length === 0
+      ? `<p style="color:var(--text2);font-size:.85rem">Nadie registrado aún.</p>`
+      : miembrosAsist.map(m => {
+          const foto = m.fotoUrl
+            ? `<img src="${m.fotoUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--gold)" alt="${m.nombre}"/>`
+            : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0D1117;font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(m.nombre)}</div>`;
+          return `<div class="ev-asist-item">${foto}<span>${m.nombre}</span></div>`;
+        }).join("")
+    }`;
+}
+
+document.getElementById("btnVolverEv").onclick = () => {
+  document.getElementById("vistaDetalle").style.display = "none";
+  document.getElementById("vistaLista").style.display   = "";
+  eventoActual = null;
+};
+
+// ══════════════════════════════════════
+//  MODAL NUEVO/EDITAR EVENTO
+// ══════════════════════════════════════
+function openModalEv(ev) {
+  document.getElementById("modalEvTitle").textContent = ev ? "Editar Evento" : "Nuevo Evento";
+  document.getElementById("evEditId").value  = ev ? ev.id          : "";
+  document.getElementById("evNombre").value  = ev ? ev.nombre      : "";
+  document.getElementById("evFecha").value   = ev ? ev.fecha       : "";
+  document.getElementById("evHora").value    = ev ? ev.hora        : "";
+  document.getElementById("evLugar").value   = ev ? ev.lugar       : "";
+  document.getElementById("evDesc").value    = ev ? ev.descripcion : "";
+  document.getElementById("evTipo").value    = ev ? ev.tipo        : "Culto";
+  document.getElementById("evColor").value   = ev ? ev.color       : "#C9A84C";
+  document.getElementById("modalEv").classList.add("open");
+}
+function closeModalEv() { document.getElementById("modalEv").classList.remove("open"); }
+
+document.getElementById("btnNuevoEv").onclick    = () => openModalEv(null);
+document.getElementById("btnCerrarEv").onclick   = closeModalEv;
+document.getElementById("btnCancelarEv").onclick = closeModalEv;
+document.getElementById("modalEv").onclick = e => { if(e.target===e.currentTarget) closeModalEv(); };
+
+document.getElementById("evForm").onsubmit = async e => {
+  e.preventDefault();
+  const btn    = document.getElementById("btnGuardarEv");
+  const nombre = document.getElementById("evNombre").value.trim();
+  const fecha  = document.getElementById("evFecha").value;
+  if (!nombre || !fecha) { alert("Nombre y fecha son obligatorios."); return; }
+  btn.disabled = true; btn.textContent = "Guardando…";
+  showLoader("Guardando evento…");
+  const editId = document.getElementById("evEditId").value;
+  const data = {
+    nombre, fecha,
+    hora:        document.getElementById("evHora").value,
+    lugar:       document.getElementById("evLugar").value.trim(),
+    descripcion: document.getElementById("evDesc").value.trim(),
+    tipo:        document.getElementById("evTipo").value,
+    color:       document.getElementById("evColor").value,
+  };
+  try {
+    if (editId) {
+      await db.collection("eventos").doc(editId).update(data);
+    } else {
+      data.creadoEn   = new Date().toISOString();
+      data.asistentes = [];
+      await db.collection("eventos").add(data);
+    }
+    closeModalEv();
+    await loadEventos();
+  } catch(err) { alert("Error: "+err.message); }
+  finally { btn.disabled=false; btn.textContent="Guardar"; hideLoader(); }
+};
+
+function editarEvento(id) {
+  const ev = todosLosEventos.find(e=>e.id===id);
+  openModalEv(ev);
+}
+
+async function eliminarEvento(id, nombre) {
+  if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+  showLoader("Eliminando…");
+  try {
+    await db.collection("eventos").doc(id).delete();
+    await loadEventos();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+
+// ══════════════════════════════════════
+//  ASISTENCIA
+// ══════════════════════════════════════
+document.getElementById("btnRegistrarAsist").onclick = () => {
+  asistenciaActual = {};
+  (eventoActual.asistentes||[]).forEach(id => asistenciaActual[id] = true);
+  renderAsistModal("");
+  document.getElementById("asistSearch").value = "";
+  document.getElementById("modalAsist").classList.add("open");
+};
+document.getElementById("btnCerrarAsist").onclick   = () => document.getElementById("modalAsist").classList.remove("open");
+document.getElementById("btnCancelarAsist2").onclick = () => document.getElementById("modalAsist").classList.remove("open");
+document.getElementById("modalAsist").onclick = e => { if(e.target===e.currentTarget) e.target.classList.remove("open"); };
+document.getElementById("asistSearch").oninput = e => renderAsistModal(e.target.value);
+
+function renderAsistModal(q) {
+  const term = q.toLowerCase();
+  const filtrados = todosLosMiembros.filter(m => !term || m.nombre.toLowerCase().includes(term));
+  document.getElementById("asistLista").innerHTML = filtrados.map(m => {
+    const checked = asistenciaActual[m.id] ? "checked" : "";
+    const foto = m.fotoUrl
+      ? `<img src="${m.fotoUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--gold)" alt="${m.nombre}"/>`
+      : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0D1117;font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(m.nombre)}</div>`;
+    return `
+      <label class="asist-item ${asistenciaActual[m.id]?"asist-item--checked":""}">
+        <input type="checkbox" value="${m.id}" ${checked} onchange="toggleAsist('${m.id}',this)"/>
+        ${foto}
+        <span>${m.nombre}</span>
+        <span class="asist-check-icon">${asistenciaActual[m.id]?"✅":""}</span>
+      </label>`;
+  }).join("");
+}
+
+function toggleAsist(id, checkbox) {
+  asistenciaActual[id] = checkbox.checked;
+  checkbox.closest("label").classList.toggle("asist-item--checked", checkbox.checked);
+  checkbox.closest("label").querySelector(".asist-check-icon").textContent = checkbox.checked ? "✅" : "";
+}
+
+document.getElementById("btnGuardarAsist").onclick = async () => {
+  showLoader("Guardando asistencia…");
+  const asistentes = Object.entries(asistenciaActual).filter(([,v])=>v).map(([k])=>k);
+  try {
+    await db.collection("eventos").doc(eventoActual.id).update({ asistentes });
+    eventoActual.asistentes = asistentes;
+    document.getElementById("modalAsist").classList.remove("open");
+    renderDetalle();
+    await loadEventos();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+};
+</script>
+
+<!-- BOTTOM NAV MÓVIL -->
+<nav class="bottom-nav">
+  <a href="index.html" class="">
+    <span class="bnav-icon">👥</span>Miembros
+  </a>
+  <a href="dashboard.html" class="">
+    <span class="bnav-icon">📊</span>Dashboard
+  </a>
+  <a href="ministerios.html" class="">
+    <span class="bnav-icon">⛪</span>Ministerios
+  </a>
+  <a href="eventos.html" class="active">
+    <span class="bnav-icon">📅</span>Eventos
+  </a>
+  <a href="finanzas.html" class="">
+    <span class="bnav-icon">💰</span>Finanzas
+  </a>
+</nav>
+
+</body>
+</html>

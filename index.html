@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CLM Puente Piedra – Base de Datos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    /* Ocultar página hasta verificar rol */
+    body { visibility: hidden; }
+    body.auth-ok { visibility: visible; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER OVERLAY -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo">
+      <img src="LOGOCLM.png" alt="CLM"/>
+    </div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+
+    <!-- LOGO -->
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+
+    <!-- NAV CENTRAL -->
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html" class="nav-link nav-link--active">👥 Miembros</a>
+          <a href="dashboard.html" class="nav-link ">📊 Dashboard</a>
+          <a href="ministerios.html" class="nav-link ">⛪ Ministerios</a>
+          <a href="tipos.html" class="nav-link ">🏷️ Tipos</a>
+          <a href="eventos.html" class="nav-link ">📅 Eventos</a>
+          <a href="finanzas.html" class="nav-link ">💰 Finanzas</a>
+          
+    </nav>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-right">
+      <button id="btnBirthdays" class="btn btn-ghost btn-icon-lbl">🎂 <span>Cumpleaños</span></button>
+      <button id="btnExport" class="btn btn-ghost btn-icon-lbl">📥 <span>Exportar</span></button>
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
+      <button id="btnNuevo" class="btn btn-primary">+ Nuevo Miembro</button>
+    </div>
+
+    <!-- HAMBURGUESA -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+
+  </div>
+</header>
+
+<main>
+  <div class="stats-bar">
+    <div class="stat-card">
+      <span class="stat-icon">👥</span>
+      <div><div class="stat-num" id="statTotal">–</div><div class="stat-lbl">Total Miembros</div></div>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon">✅</span>
+      <div><div class="stat-num" id="statActivos">–</div><div class="stat-lbl">Miembros Activos</div></div>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon">🎂</span>
+      <div><div class="stat-num" id="statBday">–</div><div class="stat-lbl">Cumpleaños Hoy</div></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input id="searchInput" type="text" placeholder="Buscar por nombre, residencia o ministerio…"/>
+    </div>
+    <select id="filterEstado" class="filter-select">
+      <option value="">Todos los estados</option>
+      <option value="activo">Activo</option>
+      <option value="visitante">Visitante</option>
+      <option value="inactivo">Inactivo</option>
+      <option value="lider">Líder</option>
+      <option value="pastor">Pastor</option>
+    </select>
+    <select id="filterMinisterio" class="filter-select">
+      <option value="">Todos los ministerios</option>
+    </select>
+    <button id="btnLimpiarFiltros" class="btn btn-ghost btn-sm">✕ Limpiar</button>
+  </div>
+
+  <div id="membersGrid"></div>
+</main>
+
+<!-- MODAL Nuevo/Editar -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Nuevo Miembro</h2>
+      <button class="modal-close" id="btnCerrar">✕</button>
+    </div>
+    <form id="memberForm" novalidate>
+      <input type="hidden" id="editId"/>
+      <input type="hidden" id="currentFotoUrl"/>
+      <div class="form-group form-full" style="margin-bottom:1rem">
+        <label>Foto del Miembro</label>
+        <input type="file" id="fotoInput" accept="image/*" style="display:none"/>
+        <div class="foto-upload-area" id="fotoUploadArea">
+          <img id="fotoPreview" src="" alt="Vista previa"/>
+          <div class="upload-txt">📷 <strong>Haz clic aquí</strong> para subir una foto<small>JPG o PNG — máx. 5 MB</small></div>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group form-full"><label>Nombre Completo *</label><input id="nombre" type="text" placeholder="Ej: María Lucía Torres Ríos" required/></div>
+        <div class="form-group"><label>Fecha de Nacimiento</label><input id="fechaNacimiento" type="date"/></div>
+        <div class="form-group"><label>Teléfono</label><input id="telefono" type="tel" placeholder="Ej: 987 654 321"/></div>
+        <div class="form-group form-full"><label>Lugar de Residencia</label><input id="residencia" type="text" placeholder="Ej: Puente Piedra, Lima"/></div>
+        <div class="form-group form-full"><label>Correo Electrónico</label><input id="correo" type="email" placeholder="correo@ejemplo.com"/></div>
+        <div class="form-group"><label>Ministerio / Área</label><input id="ministerio" type="text" placeholder="Ej: Alabanza, Jóvenes…"/></div>
+        <div class="form-group"><label>Estado</label>
+          <select id="estado">
+            <option value="Activo">Activo</option>
+            <option value="Visitante">Visitante</option>
+            <option value="Inactivo">Inactivo</option>
+            <option value="Lider">Líder</option>
+            <option value="Pastor">Pastor</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Fecha de Bautismo</label><input id="fechaBautismo" type="date"/></div>
+        <div class="form-group"><label>Fecha de Membresía</label><input id="fechaMembresia" type="date"/></div>
+        <div class="form-group form-full"><label>Contacto de Emergencia</label><input id="contactoEmergencia" type="text" placeholder="Nombre y relación"/></div>
+        <div class="form-group form-full"><label>Teléfono de Emergencia</label><input id="telefonoEmergencia" type="tel" placeholder="Ej: 987 000 111"/></div>
+        <div class="form-group form-full"><label>Familia / Núcleo familiar</label><input id="familia" type="text" placeholder="Ej: Familia Torres — 4 integrantes"/></div>
+      </div>
+      <div class="form-footer">
+        <button type="button" class="btn btn-ghost" id="btnCancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnSave">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Cumpleaños -->
+<div class="modal-overlay" id="modalBirthdays">
+  <div class="modal modal--wide">
+    <div class="modal-header">
+      <h2 id="bdayTitle">🎂 Cumpleaños del Mes</h2>
+      <button class="modal-close" id="btnCerrarBday">✕</button>
+    </div>
+    <div id="bdayList" class="bday-list"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<script>
+
+// ══════════════════════════════════════
+//  LOADER
+// ══════════════════════════════════════
+function showLoader(txt) {
+  document.getElementById("loaderTxt").textContent = txt || "Cargando…";
+  document.getElementById("loaderOverlay").classList.add("active");
+}
+function hideLoader() {
+  document.getElementById("loaderOverlay").classList.remove("active");
+}
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+// ══════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════
+function calcAge(dob) {
+  if (!dob) return "–";
+  // Parsear manualmente para evitar UTC offset
+  const [y, mo, d] = dob.split("-").map(Number);
+  const n = new Date();
+  let a = n.getFullYear() - y;
+  if (n < new Date(n.getFullYear(), mo - 1, d)) a--;
+  return a;
+}
+function fmtDate(d) {
+  if (!d) return "–";
+  const [y,m,day] = d.split("-");
+  return `${day}/${m}/${y}`;
+}
+function initials(name) {
+  return name.split(" ").slice(0,2).map(w => w[0]).join("").toUpperCase();
+}
+function birthdayToday(dob) {
+  if (!dob) return false;
+  // Parsear manualmente para evitar problema de zona horaria UTC
+  const [y, m, d] = dob.split("-").map(Number);
+  const n = new Date();
+  return m - 1 === n.getMonth() && d === n.getDate();
+}
+function birthdayThisMonth(dob) {
+  if (!dob) return false;
+  const [y, m, d] = dob.split("-").map(Number);
+  return m - 1 === new Date().getMonth();
+}
+function daysUntilBirthday(dob) {
+  if (!dob) return null;
+  const b = new Date(dob), n = new Date();
+  let next = new Date(n.getFullYear(), b.getMonth(), b.getDate());
+  if (next < n) next.setFullYear(n.getFullYear() + 1);
+  return Math.ceil((next - n) / (1000 * 60 * 60 * 24));
+}
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+let allMembers = [];
+
+// ══════════════════════════════════════
+//  AUTH GUARD — leer nombre de Firestore
+// ══════════════════════════════════════
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  let rol = "colaborador";
+  let nombre = "";
+
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    nombre = data.nombre || user.email.split("@")[0];
+    rol    = data.rol    || "colaborador";
+  } catch(e) {
+    nombre = user.email.split("@")[0];
+  }
+
+  // ── CONTROL DE ACCESO ──
+  const rolesPermitidos = ["admin", "colaborador"];
+  if (!rolesPermitidos.includes(rol)) {
+    // No tiene permiso — redirigir
+    window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
+    return;
+  }
+
+  // ── Mostrar página (oculta hasta verificar rol) ──
+  document.body.classList.add("auth-ok");
+
+  // ── Mostrar nombre ──
+  const el = document.getElementById("userNombre");
+  if (el) el.textContent = "👤 " + nombre;
+
+  // ── Ajustar nav según rol ──
+  if (rol === "colaborador") {
+    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "finanzas") {
+    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
+      if (a.classList.contains("nav-link")) a.style.display = "none";
+    });
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "admin") {
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+  }
+
+  // ── Cargar contenido ──
+  loadTiposEnSelect();
+    loadMembers();
+});
+
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if (!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut();
+  window.location.href = "login.html";
+});
+
+// ══════════════════════════════════════
+//  CARGAR MIEMBROS
+// ══════════════════════════════════════
+async function loadTiposEnSelect() {
+  try {
+    const snap = await db.collection("tiposPersona").orderBy("nombre").get();
+    const sel = document.getElementById("estado");
+    // Remove previously added custom options (keep first 5 default)
+    while (sel.options.length > 5) sel.remove(5);
+    snap.docs.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.data().nombre;
+      opt.textContent = d.data().nombre;
+      sel.appendChild(opt);
+    });
+  } catch(e) { /* silently fail */ }
+}
+
+async function loadMembers() {
+  showLoader("Cargando miembros…");
+  const grid = document.getElementById("membersGrid");
+  grid.innerHTML = "";
+  try {
+    const snap = await db.collection("miembros").orderBy("nombre").get();
+    allMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    grid.innerHTML = "";
+    if (allMembers.length === 0) {
+      grid.innerHTML = `<div class="state-box"><div class="state-icon">👥</div><p>No hay miembros aún. ¡Agrega el primero!</p></div>`;
+    } else {
+      allMembers.forEach(m => grid.appendChild(renderCard(m)));
+      populateMinisterioFilter();
+    }
+    updateStats();
+  } catch(e) {
+    grid.innerHTML = `<div class="state-box state-error"><div class="state-icon">⚠️</div><p>Error Firebase:<br><small>${e.message}</small></p></div>`;
+  } finally {
+    hideLoader();
+  }
+}
+
+// ══════════════════════════════════════
+//  RENDER CARD
+// ══════════════════════════════════════
+function renderCard(m) {
+  const card = document.createElement("div");
+  card.className          = "card";
+  card.dataset.id         = m.id;
+  card.dataset.search     = `${m.nombre} ${m.residencia||""} ${m.ministerio||""}`.toLowerCase();
+  card.dataset.ministerio = (m.ministerio||"").toLowerCase();
+  card.dataset.estado     = (m.estado||"").toLowerCase();
+  const age  = calcAge(m.fechaNacimiento);
+  const bday = birthdayToday(m.fechaNacimiento);
+  const foto = m.fotoUrl
+    ? `<img src="${m.fotoUrl}" class="avatar-img" alt="${m.nombre}"/>`
+    : `<div class="avatar-initials">${initials(m.nombre)}</div>`;
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="avatar">${foto}${bday ? '<span class="bday-badge">🎂</span>' : ""}</div>
+      <div class="card-info">
+        <h3 title="${m.nombre}">${m.nombre}</h3>
+        <span class="badge badge--ministerio">${m.ministerio||"Congregante"}</span>
+        <span class="badge badge--estado badge--${(m.estado||"activo").toLowerCase()}">${m.estado||"Activo"}</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn-icon edit" title="Editar">✏️</button>
+        <button class="btn-icon danger" title="Eliminar">🗑️</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row"><span class="lbl">🎂 Cumpleaños</span><span>${fmtDate(m.fechaNacimiento)}</span></div>
+      <div class="info-row"><span class="lbl">👤 Edad</span><span>${age} años</span></div>
+      <div class="info-row"><span class="lbl">📍 Residencia</span><span>${m.residencia||"–"}</span></div>
+      <div class="info-row"><span class="lbl">📞 Teléfono</span><span>${m.telefono||"–"}</span></div>
+      <div class="info-row"><span class="lbl">✉️ Correo</span><span class="truncate">${m.correo||"–"}</span></div>
+    </div>
+    <div class="card-footer">
+      <button class="btn-ver-perfil">Ver perfil completo →</button>
+    </div>`;
+  card.querySelector(".edit").onclick           = () => openEditModal(m);
+  card.querySelector(".danger").onclick         = () => handleDelete(m.id, m.nombre);
+  card.querySelector(".btn-ver-perfil").onclick = () => { showLoader("Cargando perfil…"); window.location.href = `perfil.html?id=${m.id}`; };
+  return card;
+}
+
+// ══════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════
+function updateStats() {
+  document.getElementById("statTotal").textContent   = allMembers.length;
+  document.getElementById("statActivos").textContent = allMembers.filter(m => (m.estado||"").toLowerCase() === "activo").length;
+  document.getElementById("statBday").textContent    = allMembers.filter(m => birthdayToday(m.fechaNacimiento)).length;
+}
+
+// ══════════════════════════════════════
+//  FILTROS
+// ══════════════════════════════════════
+function populateMinisterioFilter() {
+  const sel = document.getElementById("filterMinisterio");
+  const ministerios = [...new Set(allMembers.map(m => m.ministerio).filter(Boolean))].sort();
+  while (sel.options.length > 1) sel.remove(1);
+  ministerios.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.toLowerCase(); opt.textContent = m;
+    sel.appendChild(opt);
+  });
+}
+function applyFilters() {
+  const txt = document.getElementById("searchInput").value.toLowerCase();
+  const est = document.getElementById("filterEstado").value.toLowerCase();
+  const min = document.getElementById("filterMinisterio").value.toLowerCase();
+  document.querySelectorAll(".card").forEach(c => {
+    const ok = (!txt || c.dataset.search.includes(txt))
+            && (!est || c.dataset.estado === est)
+            && (!min || c.dataset.ministerio.includes(min));
+    c.style.display = ok ? "" : "none";
+  });
+}
+
+// ══════════════════════════════════════
+//  FOTO
+// ══════════════════════════════════════
+let fotoPendienteBase64 = "";
+
+function setupFotoPreview() {
+  const input = document.getElementById("fotoInput");
+  const area  = document.getElementById("fotoUploadArea");
+  area.onclick = () => input.click();
+  input.onchange = () => {
+    const file = input.files[0]; if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 400;
+      let w = img.width, h = img.height;
+      if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
+      else if (h > MAX)     { w = w * MAX / h; h = MAX; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      const base64 = canvas.toDataURL("image/jpeg", 0.7);
+      fotoPendienteBase64 = base64;
+      const prev = document.getElementById("fotoPreview");
+      prev.src = base64; prev.style.display = "block";
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+}
+setupFotoPreview();
+
+function resetFotoInput() {
+  fotoPendienteBase64 = "";
+  const old   = document.getElementById("fotoInput");
+  const nuevo = old.cloneNode(false);
+  nuevo.id    = "fotoInput";
+  old.parentNode.replaceChild(nuevo, old);
+  document.getElementById("fotoUploadArea").onclick = () => nuevo.click();
+  nuevo.onchange = () => {
+    const file = nuevo.files[0]; if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 400;
+      let w = img.width, h = img.height;
+      if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
+      else if (h > MAX)     { w = w * MAX / h; h = MAX; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      const base64 = canvas.toDataURL("image/jpeg", 0.7);
+      fotoPendienteBase64 = base64;
+      const prev = document.getElementById("fotoPreview");
+      prev.src = base64; prev.style.display = "block";
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+}
+
+// ══════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════
+function openNewModal() {
+  document.getElementById("modalTitle").textContent    = "Nuevo Miembro";
+  document.getElementById("memberForm").reset();
+  document.getElementById("editId").value              = "";
+  document.getElementById("currentFotoUrl").value      = "";
+  document.getElementById("fotoPreview").style.display = "none";
+  resetFotoInput();
+  document.getElementById("modal").classList.add("open");
+}
+function openEditModal(m) {
+  document.getElementById("modalTitle").textContent    = "Editar Miembro";
+  document.getElementById("editId").value              = m.id;
+  document.getElementById("nombre").value              = m.nombre||"";
+  document.getElementById("fechaNacimiento").value     = m.fechaNacimiento||"";
+  document.getElementById("telefono").value            = m.telefono||"";
+  document.getElementById("residencia").value          = m.residencia||"";
+  document.getElementById("correo").value              = m.correo||"";
+  document.getElementById("ministerio").value          = m.ministerio||"";
+  document.getElementById("estado").value              = m.estado||"Activo";
+  document.getElementById("fechaBautismo").value       = m.fechaBautismo||"";
+  document.getElementById("fechaMembresia").value      = m.fechaMembresia||"";
+  document.getElementById("contactoEmergencia").value  = m.contactoEmergencia||"";
+  document.getElementById("telefonoEmergencia").value  = m.telefonoEmergencia||"";
+  document.getElementById("familia").value             = m.familia||"";
+  document.getElementById("currentFotoUrl").value      = m.fotoUrl||"";
+  const prev = document.getElementById("fotoPreview");
+  if (m.fotoUrl) { prev.src = m.fotoUrl; prev.style.display = "block"; }
+  else           { prev.style.display = "none"; }
+  resetFotoInput();
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+  document.getElementById("memberForm").reset();
+  document.getElementById("editId").value              = "";
+  document.getElementById("currentFotoUrl").value      = "";
+  document.getElementById("fotoPreview").style.display = "none";
+}
+
+// ══════════════════════════════════════
+//  GUARDAR
+// ══════════════════════════════════════
+async function handleSave(e) {
+  e.preventDefault();
+  const btn    = document.getElementById("btnSave");
+  const nombre = document.getElementById("nombre").value.trim();
+  if (!nombre) { alert("El nombre es obligatorio."); return; }
+  btn.disabled = true; btn.textContent = "Guardando…";
+  showLoader("Guardando miembro…");
+  const editId  = document.getElementById("editId").value;
+  let   fotoUrl = document.getElementById("currentFotoUrl").value || "";
+  try {
+    if (fotoPendienteBase64) fotoUrl = fotoPendienteBase64;
+    const data = {
+      nombre,
+      fechaNacimiento:    document.getElementById("fechaNacimiento").value,
+      residencia:         document.getElementById("residencia").value.trim(),
+      telefono:           document.getElementById("telefono").value.trim(),
+      correo:             document.getElementById("correo").value.trim(),
+      ministerio:         document.getElementById("ministerio").value.trim(),
+      estado:             document.getElementById("estado").value,
+      fechaBautismo:      document.getElementById("fechaBautismo").value,
+      fechaMembresia:     document.getElementById("fechaMembresia").value,
+      contactoEmergencia: document.getElementById("contactoEmergencia").value.trim(),
+      telefonoEmergencia: document.getElementById("telefonoEmergencia").value.trim(),
+      familia:            document.getElementById("familia").value.trim(),
+      fotoUrl
+    };
+    if (editId) {
+      await db.collection("miembros").doc(editId).update(data);
+    } else {
+      data.creadoEn = new Date().toISOString();
+      await db.collection("miembros").add(data);
+    }
+    closeModal();
+    await loadMembers();
+  } catch(err) {
+    hideLoader();
+    alert("❌ Error al guardar:\n" + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Guardar";
+  }
+}
+
+// ══════════════════════════════════════
+//  ELIMINAR
+// ══════════════════════════════════════
+async function handleDelete(id, nombre) {
+  if (!confirm(`¿Eliminar a "${nombre}"? No se puede deshacer.`)) return;
+  try {
+    showLoader("Eliminando…");
+    await db.collection("miembros").doc(id).delete();
+    await loadMembers();
+  } catch(err) {
+    hideLoader();
+    alert("❌ Error: " + err.message);
+  }
+}
+
+// ══════════════════════════════════════
+//  CUMPLEAÑOS
+// ══════════════════════════════════════
+function showBirthdays() {
+  const mes   = new Date().getMonth();
+  const lista = allMembers
+    .filter(m => birthdayThisMonth(m.fechaNacimiento))
+    .sort((a,b) => new Date(a.fechaNacimiento).getDate() - new Date(b.fechaNacimiento).getDate());
+  document.getElementById("bdayTitle").textContent = `🎂 Cumpleaños de ${MESES[mes]}`;
+  const container = document.getElementById("bdayList");
+  if (lista.length === 0) {
+    container.innerHTML = `<div class="bday-empty">No hay cumpleaños este mes 😊</div>`;
+  } else {
+    container.innerHTML = lista.map(m => {
+      const dias = daysUntilBirthday(m.fechaNacimiento);
+      const edad = calcAge(m.fechaNacimiento) + 1;
+      const foto = m.fotoUrl
+        ? `<img src="${m.fotoUrl}" class="bday-avatar-img" alt="${m.nombre}"/>`
+        : `<div class="bday-avatar-initials">${initials(m.nombre)}</div>`;
+      const tag = dias === 0
+        ? `<span class="bday-tag today">¡Hoy! 🎉</span>`
+        : `<span class="bday-tag">${dias} día${dias !== 1 ? "s" : ""}</span>`;
+      return `<div class="bday-item"><div class="bday-avatar">${foto}</div>
+        <div class="bday-info"><strong>${m.nombre}</strong><span>${fmtDate(m.fechaNacimiento)} · Cumple ${edad} años</span></div>
+        ${tag}</div>`;
+    }).join("");
+  }
+  document.getElementById("modalBirthdays").classList.add("open");
+}
+
+// ══════════════════════════════════════
+//  EXPORTAR CSV
+// ══════════════════════════════════════
+function exportToCSV() {
+  const headers = ["Nombre","Nacimiento","Edad","Teléfono","Correo","Residencia","Ministerio","Estado","Bautismo","Membresía","Contacto Emergencia","Tel. Emergencia","Familia"];
+  const rows = allMembers.map(m => [
+    m.nombre, m.fechaNacimiento, calcAge(m.fechaNacimiento),
+    m.telefono, m.correo, m.residencia, m.ministerio, m.estado,
+    m.fechaBautismo, m.fechaMembresia, m.contactoEmergencia, m.telefonoEmergencia, m.familia
+  ].map(v => `"${(v||"").toString().replace(/"/g,'""')}"`));
+  const csv  = [headers, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = `CLM_PuentePiedra_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════════════
+//  EVENTOS
+// ══════════════════════════════════════
+document.getElementById("btnNuevo").addEventListener("click", openNewModal);
+document.getElementById("btnCerrar").addEventListener("click", closeModal);
+document.getElementById("btnCancelar").addEventListener("click", closeModal);
+document.getElementById("modal").addEventListener("click", e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById("memberForm").addEventListener("submit", handleSave);
+document.getElementById("btnBirthdays").addEventListener("click", showBirthdays);
+document.getElementById("btnCerrarBday").addEventListener("click", () => document.getElementById("modalBirthdays").classList.remove("open"));
+document.getElementById("modalBirthdays").addEventListener("click", e => { if (e.target === e.currentTarget) e.target.classList.remove("open"); });
+document.getElementById("btnExport").addEventListener("click", exportToCSV);
+document.getElementById("searchInput").addEventListener("input", applyFilters);
+document.getElementById("filterEstado").addEventListener("change", applyFilters);
+document.getElementById("filterMinisterio").addEventListener("change", applyFilters);
+document.getElementById("btnLimpiarFiltros").addEventListener("click", () => {
+  document.getElementById("searchInput").value      = "";
+  document.getElementById("filterEstado").value     = "";
+  document.getElementById("filterMinisterio").value = "";
+  applyFilters();
+});
+</script>
+
+<!-- BOTTOM NAV MÓVIL -->
+<nav class="bottom-nav">
+  <a href="index.html" class="active">
+    <span class="bnav-icon">👥</span>Miembros
+  </a>
+  <a href="dashboard.html" class="">
+    <span class="bnav-icon">📊</span>Dashboard
+  </a>
+  <a href="ministerios.html" class="">
+    <span class="bnav-icon">⛪</span>Ministerios
+  </a>
+  <a href="eventos.html" class="">
+    <span class="bnav-icon">📅</span>Eventos
+  </a>
+  <a href="finanzas.html" class="">
+    <span class="bnav-icon">💰</span>Finanzas
+  </a>
+</nav>
+
+</body>
+</html>

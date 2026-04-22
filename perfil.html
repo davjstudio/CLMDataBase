@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Perfil – CLM Puente Piedra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/perfil.css"/>
+  <style>
+    /* Ocultar página hasta verificar rol */
+    body { visibility: hidden; }
+    body.auth-ok { visibility: visible; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER OVERLAY -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo">
+      <img src="LOGOCLM.png" alt="CLM"/>
+    </div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+
+    <!-- LOGO -->
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+
+    <!-- NAV CENTRAL -->
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html" class="nav-link ">👥 Miembros</a>
+          <a href="dashboard.html" class="nav-link ">📊 Dashboard</a>
+          <a href="ministerios.html" class="nav-link ">⛪ Ministerios</a>
+          <a href="tipos.html" class="nav-link ">🏷️ Tipos</a>
+          <a href="eventos.html" class="nav-link ">📅 Eventos</a>
+          <a href="finanzas.html" class="nav-link ">💰 Finanzas</a>
+          
+    </nav>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-right">
+      <a href="index.html" class="btn btn-ghost">← Volver</a>
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
+      
+    </div>
+
+    <!-- HAMBURGUESA -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+
+  </div>
+</header>
+
+<main id="perfilMain"></main>
+
+<!-- Firebase compat (sin módulos) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<!-- Storage no necesario: fotos como base64 -->
+
+<script>
+
+// ══════════════════════════════════════
+//  LOADER
+// ══════════════════════════════════════
+function showLoader(txt) {
+  document.getElementById("loaderTxt").textContent = txt || "Cargando…";
+  document.getElementById("loaderOverlay").classList.add("active");
+}
+function hideLoader() {
+  document.getElementById("loaderOverlay").classList.remove("active");
+}
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+let fotoPendienteBase64 = "";
+
+// ── HELPERS ──
+function calcAge(dob) {
+  if (!dob) return "–";
+  const b=new Date(dob),n=new Date();
+  let a=n.getFullYear()-b.getFullYear();
+  if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;
+  return a;
+}
+function fmtDate(d) {
+  if (!d) return "–";
+  const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`;
+}
+function initials(name) {
+  return name.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase();
+}
+
+// ── OBTENER ID DE LA URL ──
+const params   = new URLSearchParams(location.search);
+const memberId = params.get("id");
+const main     = document.getElementById("perfilMain");
+
+if (!memberId) {
+  main.innerHTML = `<div class="state-box state-error"><p>ID no encontrado.</p><a href="index.html" class="btn btn-primary" style="margin-top:1rem">← Volver</a></div>`;
+} else {
+  auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  let rol = "colaborador";
+  let nombre = "";
+
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.exists ? snap.data() : {};
+    nombre = data.nombre || user.email.split("@")[0];
+    rol    = data.rol    || "colaborador";
+  } catch(e) {
+    nombre = user.email.split("@")[0];
+  }
+
+  // ── CONTROL DE ACCESO ──
+  const rolesPermitidos = ["admin", "colaborador"];
+  if (!rolesPermitidos.includes(rol)) {
+    // No tiene permiso — redirigir
+    window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
+    return;
+  }
+
+  // ── Mostrar página (oculta hasta verificar rol) ──
+  document.body.classList.add("auth-ok");
+
+  // ── Mostrar nombre ──
+  const el = document.getElementById("userNombre");
+  if (el) el.textContent = "👤 " + nombre;
+
+  // ── Ajustar nav según rol ──
+  if (rol === "colaborador") {
+    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "finanzas") {
+    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
+      if (a.classList.contains("nav-link")) a.style.display = "none";
+    });
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  } else if (rol === "admin") {
+    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+  }
+
+  // ── Cargar contenido ──
+  loadPerfil();
+});
+}
+
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if (!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut();
+  window.location.href = "login.html";
+});
+
+async function loadPerfil() {
+  showLoader("Cargando perfil…");
+  try {
+    const doc = await db.collection("miembros").doc(memberId).get();
+    if (!doc.exists) throw new Error("Miembro no encontrado");
+    const m = { id: doc.id, ...doc.data() };
+    renderPerfil(m);
+    hideLoader();
+    loadAttendance();
+  } catch(e) {
+    hideLoader();
+    main.innerHTML = `<div class="state-box state-error"><div class="state-icon">⚠️</div><p>${e.message}</p></div>`;
+  }
+}
+
+function renderPerfil(m) {
+  const age  = calcAge(m.fechaNacimiento);
+  const est  = (m.estado||"activo").toLowerCase();
+  const foto = m.fotoUrl
+    ? `<img src="${m.fotoUrl}" class="perfil-foto-img" alt="${m.nombre}"/>`
+    : `<div class="perfil-foto-initials">${initials(m.nombre)}</div>`;
+
+  document.title = `${m.nombre} – CLM Puente Piedra`;
+  main.innerHTML = `
+    <div class="perfil-hero">
+      <div class="perfil-foto">${foto}</div>
+      <div class="perfil-hero-info">
+        <h1>${m.nombre}</h1>
+        <div class="perfil-badges">
+          <span class="badge badge--ministerio">${m.ministerio||"Congregante"}</span>
+          <span class="badge badge--estado badge--${est}">${m.estado||"Activo"}</span>
+        </div>
+        <div class="perfil-hero-meta">
+          <span>📍 ${m.residencia||"–"}</span>
+          <span>👤 ${age} años</span>
+          <span>🎂 ${fmtDate(m.fechaNacimiento)}</span>
+        </div>
+      </div>
+      <div class="perfil-hero-actions">
+        <button class="btn btn-primary" id="btnEditarPerfil">✏️ Editar</button>
+        <button class="btn btn-ghost danger-btn" id="btnEliminarPerfil">🗑️ Eliminar</button>
+      </div>
+    </div>
+
+    <div class="perfil-grid">
+      <div class="perfil-section">
+        <h3 class="section-title">📋 Información Personal</h3>
+        <div class="detail-list">
+          <div class="detail-row"><span class="lbl">Nombre</span><span>${m.nombre}</span></div>
+          <div class="detail-row"><span class="lbl">Nacimiento</span><span>${fmtDate(m.fechaNacimiento)}</span></div>
+          <div class="detail-row"><span class="lbl">Edad</span><span>${age} años</span></div>
+          <div class="detail-row"><span class="lbl">Residencia</span><span>${m.residencia||"–"}</span></div>
+          <div class="detail-row"><span class="lbl">Teléfono</span><span>${m.telefono||"–"}</span></div>
+          <div class="detail-row"><span class="lbl">Correo</span><span>${m.correo||"–"}</span></div>
+          <div class="detail-row"><span class="lbl">Familia</span><span>${m.familia||"–"}</span></div>
+        </div>
+      </div>
+
+      <div class="perfil-section">
+        <h3 class="section-title">⛪ Membresía</h3>
+        <div class="detail-list">
+          <div class="detail-row"><span class="lbl">Estado</span><span><span class="badge badge--estado badge--${est}">${m.estado||"–"}</span></span></div>
+          <div class="detail-row"><span class="lbl">Ministerio</span><span>${m.ministerio||"–"}</span></div>
+          <div class="detail-row"><span class="lbl">Bautismo</span><span>${fmtDate(m.fechaBautismo)}</span></div>
+          <div class="detail-row"><span class="lbl">Membresía desde</span><span>${fmtDate(m.fechaMembresia)}</span></div>
+          <div class="detail-row"><span class="lbl">Registrado</span><span>${m.creadoEn?new Date(m.creadoEn).toLocaleDateString("es-PE"):"–"}</span></div>
+        </div>
+      </div>
+
+      <div class="perfil-section">
+        <h3 class="section-title">🚨 Contacto de Emergencia</h3>
+        <div class="detail-list">
+          <div class="detail-row"><span class="lbl">Contacto</span><span>${m.contactoEmergencia||"–"}</span></div>
+          <div class="detail-row"><span class="lbl">Teléfono</span><span>${m.telefonoEmergencia||"–"}</span></div>
+        </div>
+      </div>
+
+      <div class="perfil-section perfil-section--full">
+        <div class="attendance-header">
+          <h3 class="section-title">📅 Registro de Asistencia</h3>
+          <button class="btn btn-primary btn-sm" id="btnRegistrarAsist">+ Registrar</button>
+        </div>
+        <div id="attendancePanel"><div class="spinner" style="margin:1rem auto"></div></div>
+      </div>
+    </div>
+
+    <!-- MODAL EDITAR (inline en perfil) -->
+    <div class="modal-overlay" id="modalEditar">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Editar Miembro</h2>
+          <button class="modal-close" id="btnCerrarEdit">✕</button>
+        </div>
+        <form id="editForm" novalidate>
+          <div class="form-group form-full" style="margin-bottom:1rem">
+            <label>Foto</label>
+            <div class="foto-upload-area" id="editFotoArea">
+              <img id="editFotoPreview" src="${m.fotoUrl||""}" style="${m.fotoUrl?"display:block":"display:none"};width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin:0 auto .8rem" alt=""/>
+              <input type="file" id="editFotoInput" accept="image/*"/>
+              <div class="upload-txt">📷 <strong>Cambiar foto</strong></div>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group form-full"><label>Nombre *</label><input id="eNombre" value="${m.nombre||""}" required/></div>
+            <div class="form-group"><label>Fecha Nacimiento</label><input id="eFechaNac" type="date" value="${m.fechaNacimiento||""}"/></div>
+            <div class="form-group"><label>Teléfono</label><input id="eTelefono" value="${m.telefono||""}"/></div>
+            <div class="form-group form-full"><label>Residencia</label><input id="eResidencia" value="${m.residencia||""}"/></div>
+            <div class="form-group form-full"><label>Correo</label><input id="eCorreo" type="email" value="${m.correo||""}"/></div>
+            <div class="form-group"><label>Ministerio</label><input id="eMinisterio" value="${m.ministerio||""}"/></div>
+            <div class="form-group"><label>Estado</label>
+              <select id="eEstado">
+                <option ${m.estado==="Activo"?"selected":""}>Activo</option>
+                <option ${m.estado==="Visitante"?"selected":""}>Visitante</option>
+                <option ${m.estado==="Inactivo"?"selected":""}>Inactivo</option>
+                <option ${m.estado==="Lider"?"selected":""}>Líder</option>
+                <option ${m.estado==="Pastor"?"selected":""}>Pastor</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Bautismo</label><input id="eBautismo" type="date" value="${m.fechaBautismo||""}"/></div>
+            <div class="form-group"><label>Membresía</label><input id="eMembresia" type="date" value="${m.fechaMembresia||""}"/></div>
+            <div class="form-group form-full"><label>Contacto Emergencia</label><input id="eContacto" value="${m.contactoEmergencia||""}"/></div>
+            <div class="form-group form-full"><label>Tel. Emergencia</label><input id="eTelEmerg" value="${m.telefonoEmergencia||""}"/></div>
+            <div class="form-group form-full"><label>Familia</label><input id="eFamilia" value="${m.familia||""}"/></div>
+          </div>
+          <div class="form-footer">
+            <button type="button" class="btn btn-ghost" id="btnCancelarEdit">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btnGuardarEdit">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+
+  // Editar
+  document.getElementById("btnEditarPerfil").onclick = () =>
+    document.getElementById("modalEditar").classList.add("open");
+  document.getElementById("btnCerrarEdit").onclick = () => {
+    fotoPendienteBase64 = "";
+    document.getElementById("modalEditar").classList.remove("open");
+  };
+  document.getElementById("btnCancelarEdit").onclick = () => {
+    fotoPendienteBase64 = "";
+    document.getElementById("modalEditar").classList.remove("open");
+  };
+  document.getElementById("modalEditar").onclick = e => {
+    if(e.target===e.currentTarget) e.target.classList.remove("open");
+  };
+  document.getElementById("editFotoArea").onclick = () =>
+    document.getElementById("editFotoInput").click();
+  document.getElementById("editFotoInput").onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 400;
+      let w = img.width, h = img.height;
+      if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
+      else if (h > MAX)     { w = w * MAX / h; h = MAX; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      const base64 = canvas.toDataURL("image/jpeg", 0.7);
+      fotoPendienteBase64 = base64;
+      const p = document.getElementById("editFotoPreview");
+      p.src = base64; p.style.display = "block";
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+  document.getElementById("editForm").onsubmit = async ev => {
+    ev.preventDefault();
+    const btn = document.getElementById("btnGuardarEdit");
+    btn.disabled=true; btn.textContent="Guardando…";
+    showLoader("Guardando cambios…");
+    let fotoUrl = m.fotoUrl||"";
+    try {
+      // Usar base64 comprimido en lugar de Firebase Storage
+      if (fotoPendienteBase64) {
+        fotoUrl = fotoPendienteBase64;
+      }
+      await db.collection("miembros").doc(memberId).update({
+        nombre:             document.getElementById("eNombre").value.trim(),
+        fechaNacimiento:    document.getElementById("eFechaNac").value,
+        telefono:           document.getElementById("eTelefono").value.trim(),
+        residencia:         document.getElementById("eResidencia").value.trim(),
+        correo:             document.getElementById("eCorreo").value.trim(),
+        ministerio:         document.getElementById("eMinisterio").value.trim(),
+        estado:             document.getElementById("eEstado").value,
+        fechaBautismo:      document.getElementById("eBautismo").value,
+        fechaMembresia:     document.getElementById("eMembresia").value,
+        contactoEmergencia: document.getElementById("eContacto").value.trim(),
+        telefonoEmergencia: document.getElementById("eTelEmerg").value.trim(),
+        familia:            document.getElementById("eFamilia").value.trim(),
+        fotoUrl
+      });
+      loadPerfil();
+    } catch(err) {
+      hideLoader();
+      alert("Error: "+err.message);
+    }
+    finally { btn.disabled=false; btn.textContent="Guardar"; }
+  };
+
+  // Eliminar
+  document.getElementById("btnEliminarPerfil").onclick = async () => {
+    if(!confirm(`¿Eliminar a "${m.nombre}"?`)) return;
+    showLoader("Eliminando…");
+    await db.collection("miembros").doc(memberId).delete();
+    window.location.href = "index.html";
+  };
+
+  // Asistencia
+  document.getElementById("btnRegistrarAsist").onclick = () => showAttendanceModal();
+}
+
+// ── ASISTENCIA ──
+async function loadAttendance() {
+  const panel = document.getElementById("attendancePanel");
+  if (!panel) return;
+  try {
+    const snap = await db.collection("miembros").doc(memberId)
+      .collection("asistencia").orderBy("fecha","desc").get();
+    if (snap.empty) {
+      panel.innerHTML = `<p class="att-empty">No hay registros de asistencia aún.</p>`;
+      return;
+    }
+    const registros = snap.docs.map(d=>d.data());
+    const presentes = registros.filter(r=>r.presente).length;
+    panel.innerHTML = `
+      <div class="att-grid">${registros.slice(0,30).map(r=>`
+        <div class="att-chip att-chip--${r.presente?"yes":"no"}">
+          <span>${fmtDate(r.fecha)}</span><span>${r.presente?"✅":"❌"}</span>
+        </div>`).join("")}
+      </div>
+      <div class="att-resumen">
+        <span>Total: ${registros.length}</span>
+        <span>Presentes: ${presentes}</span>
+        <span>Ausentes: ${registros.length-presentes}</span>
+      </div>`;
+  } catch(e) {
+    const panel2 = document.getElementById("attendancePanel");
+    if(panel2) panel2.innerHTML = `<p class="att-empty">No se pudo cargar la asistencia.</p>`;
+  }
+}
+
+function showAttendanceModal() {
+  const today   = new Date().toISOString().slice(0,10);
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay open";
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:340px">
+      <div class="modal-header">
+        <h2>Registrar Asistencia</h2>
+        <button class="modal-close" id="btnCloseAtt">✕</button>
+      </div>
+      <div class="form-group" style="margin-bottom:1.2rem">
+        <label style="font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Fecha</label>
+        <input type="date" id="attFecha" value="${today}" style="margin-top:.4rem;background:var(--dark3);border:1px solid var(--dark4);border-radius:8px;padding:.65rem .9rem;color:var(--text);font-size:.9rem;outline:none;width:100%"/>
+      </div>
+      <div style="display:flex;gap:.8rem">
+        <button class="btn btn-primary" style="flex:1" id="btnPresente">✅ Presente</button>
+        <button class="btn btn-ghost"   style="flex:1" id="btnAusente">❌ Ausente</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector("#btnCloseAtt").onclick = () => overlay.remove();
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+
+  async function registrar(presente) {
+    const fecha = overlay.querySelector("#attFecha").value;
+    if (!fecha) { alert("Selecciona una fecha."); return; }
+    await db.collection("miembros").doc(memberId)
+      .collection("asistencia").add({ fecha, presente, registradoEn: new Date().toISOString() });
+    overlay.remove();
+    loadAttendance();
+  }
+  overlay.querySelector("#btnPresente").onclick = () => registrar(true);
+  overlay.querySelector("#btnAusente").onclick  = () => registrar(false);
+}
+
+// ── HAMBURGUESA ──
+const menuToggle   = document.getElementById("menuToggle");
+const headerNav    = document.getElementById("headerNav");
+if (menuToggle && headerNav) {
+  menuToggle.addEventListener("click", () => {
+    headerNav.classList.toggle("open");
+    menuToggle.textContent = headerNav.classList.contains("open") ? "✕" : "☰";
+  });
+  headerNav.querySelectorAll("a").forEach(a =>
+    a.addEventListener("click", () => {
+      headerNav.classList.remove("open");
+      menuToggle.textContent = "☰";
+    })
+  );
+}
+
+</script>
+</body>
+</html>

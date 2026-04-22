@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Usuarios – CLM Puente Piedra</title>
+  <link rel="icon" type="image/png" href="LOGOCLM.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/usuarios.css"/>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loaderOverlay">
+  <div class="loader-ring">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradLoader" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#C9A84C"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="45"/>
+    </svg>
+    <div class="loader-logo"><img src="LOGOCLM.png" alt="CLM"/></div>
+  </div>
+  <span class="loader-txt" id="loaderTxt">Cargando…</span>
+</div>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="header-brand">
+      <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
+      <div class="header-text">
+        <h1>CLM Puente Piedra</h1>
+        <p>Base de Datos de la Iglesia</p>
+      </div>
+    </a>
+    <nav class="header-nav" id="headerNav">
+      <a href="index.html"       class="nav-link">👥 Miembros</a>
+      <a href="dashboard.html"   class="nav-link">📊 Dashboard</a>
+      <a href="ministerios.html" class="nav-link">⛪ Ministerios</a>
+      <a href="tipos.html"       class="nav-link">🏷️ Tipos</a>
+      <a href="eventos.html"     class="nav-link">📅 Eventos</a>
+      <a href="finanzas.html"    class="nav-link">💰 Finanzas</a>
+      <a href="usuarios.html"    class="nav-link nav-link--active">👤 Usuarios</a>
+    </nav>
+    <div class="header-right">
+      <span id="userNombre" class="user-email header-user"></span>
+      <button id="btnLogout" class="btn-logout">🚪</button>
+    </div>
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+  </div>
+</header>
+
+<main class="usr-main">
+  <div class="usr-toolbar">
+    <div>
+      <h2 class="usr-page-title">👤 Gestión de Usuarios</h2>
+      <p class="usr-desc">Solo el Admin puede ver esta página y cambiar roles.</p>
+    </div>
+  </div>
+
+  <div id="usuariosList" class="usr-list"></div>
+</main>
+
+<!-- MODAL CAMBIAR ROL -->
+<div class="modal-overlay" id="modalRol">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2>Cambiar Rol</h2>
+      <button class="modal-close" id="btnCerrarRol">✕</button>
+    </div>
+    <div style="margin-bottom:1.2rem">
+      <p style="color:var(--text2);font-size:.85rem;margin-bottom:1rem">
+        Usuario: <strong id="rolUsuarioNombre"></strong>
+      </p>
+      <div class="form-group">
+        <label>Rol</label>
+        <select id="selectRol" style="background:var(--dark3);border:1px solid var(--dark4);border-radius:8px;padding:.65rem .9rem;color:var(--text);font-size:.9rem;outline:none;width:100%;margin-top:.4rem">
+          <option value="admin">👑 Admin — acceso total</option>
+          <option value="colaborador">🤝 Colaborador — miembros y eventos, sin finanzas</option>
+          <option value="finanzas">💰 Finanzas — solo finanzas</option>
+        </select>
+      </div>
+    </div>
+    <div class="usr-rol-desc" id="rolDesc"></div>
+    <div class="form-footer">
+      <button class="btn btn-ghost" id="btnCancelarRol">Cancelar</button>
+      <button class="btn btn-primary" id="btnGuardarRol">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+function showLoader(t){ document.getElementById("loaderTxt").textContent=t||"Cargando…"; document.getElementById("loaderOverlay").classList.add("active"); }
+function hideLoader() { document.getElementById("loaderOverlay").classList.remove("active"); }
+
+const ROL_INFO = {
+  admin:       { label:"👑 Admin",       color:"#C9A84C", desc:"Acceso total: miembros, eventos, ministerios, finanzas y usuarios." },
+  colaborador: { label:"🤝 Colaborador", color:"#58A6FF", desc:"Puede ver y editar miembros, eventos y ministerios. No tiene acceso a Finanzas ni Usuarios." },
+  finanzas:    { label:"💰 Finanzas",    color:"#3FB950", desc:"Solo puede ver y gestionar la sección de Finanzas." },
+};
+
+let usuarioEditandoId   = null;
+let usuarioActualId     = null;
+
+// ── AUTH GUARD: solo admin ──
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+  usuarioActualId = user.uid;
+  try {
+    const snap = await db.collection("usuarios").doc(user.uid).get();
+    const data = snap.data() || {};
+    if (data.rol !== "admin") {
+      alert("⛔ Solo el Admin puede acceder a esta página.");
+      window.location.href = "index.html";
+      return;
+    }
+    document.getElementById("userNombre").textContent = "👤 " + (data.nombre || user.email.split("@")[0]);
+    loadUsuarios();
+  } catch(e) {
+    window.location.href = "index.html";
+  }
+});
+
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if(!confirm("¿Cerrar sesión?")) return;
+  await auth.signOut(); window.location.href = "login.html";
+});
+
+// ══════════════════════════════════════
+//  CARGAR USUARIOS
+// ══════════════════════════════════════
+async function loadUsuarios() {
+  showLoader("Cargando usuarios…");
+  try {
+    const snap = await db.collection("usuarios").orderBy("creadoEn").get();
+    const usuarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderUsuarios(usuarios);
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+}
+
+function renderUsuarios(usuarios) {
+  const lista = document.getElementById("usuariosList");
+  lista.innerHTML = usuarios.map(u => {
+    const rol     = u.rol || "colaborador";
+    const info    = ROL_INFO[rol] || ROL_INFO.colaborador;
+    const esYo    = u.id === usuarioActualId;
+    return `
+      <div class="usr-item">
+        <div class="usr-avatar">${(u.nombre||"?")[0].toUpperCase()}</div>
+        <div class="usr-info">
+          <strong>${u.nombre || "Sin nombre"} ${esYo ? '<span class="usr-tu">(Tú)</span>' : ""}</strong>
+          <span>${u.email || ""}</span>
+          <span style="font-size:.72rem;color:var(--text2)">
+            Registrado: ${u.creadoEn ? new Date(u.creadoEn).toLocaleDateString("es-PE") : "–"}
+          </span>
+        </div>
+        <div class="usr-rol-badge" style="background:${info.color}22;color:${info.color};border-color:${info.color}44">
+          ${info.label}
+        </div>
+        ${!esYo ? `<button class="btn btn-ghost btn-sm" onclick="openModalRol('${u.id}','${u.nombre}','${rol}')">✏️ Cambiar rol</button>` : '<span class="usr-no-edit">—</span>'}
+      </div>`;
+  }).join("");
+}
+
+// ══════════════════════════════════════
+//  MODAL ROL
+// ══════════════════════════════════════
+function openModalRol(id, nombre, rolActual) {
+  usuarioEditandoId = id;
+  document.getElementById("rolUsuarioNombre").textContent = nombre;
+  document.getElementById("selectRol").value = rolActual;
+  updateRolDesc(rolActual);
+  document.getElementById("modalRol").classList.add("open");
+}
+function closeModalRol() {
+  document.getElementById("modalRol").classList.remove("open");
+  usuarioEditandoId = null;
+}
+
+document.getElementById("selectRol").onchange = e => updateRolDesc(e.target.value);
+function updateRolDesc(rol) {
+  const info = ROL_INFO[rol] || ROL_INFO.colaborador;
+  const el   = document.getElementById("rolDesc");
+  el.textContent = info.desc;
+  el.style.borderLeftColor = info.color;
+}
+
+document.getElementById("btnCerrarRol").onclick  = closeModalRol;
+document.getElementById("btnCancelarRol").onclick = closeModalRol;
+document.getElementById("modalRol").onclick = e => { if(e.target===e.currentTarget) closeModalRol(); };
+
+document.getElementById("btnGuardarRol").onclick = async () => {
+  const nuevoRol = document.getElementById("selectRol").value;
+  showLoader("Guardando…");
+  try {
+    await db.collection("usuarios").doc(usuarioEditandoId).update({ rol: nuevoRol });
+    closeModalRol();
+    await loadUsuarios();
+  } catch(e) { alert("Error: "+e.message); }
+  finally { hideLoader(); }
+};
+
+// ── HAMBURGUESA ──
+const menuToggle = document.getElementById("menuToggle");
+const headerNav  = document.getElementById("headerNav");
+if (menuToggle && headerNav) {
+  menuToggle.addEventListener("click", () => {
+    headerNav.classList.toggle("open");
+    menuToggle.textContent = headerNav.classList.contains("open") ? "✕" : "☰";
+  });
+}
+</script>
+</body>
+</html>

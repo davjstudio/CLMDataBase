@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Iniciar Sesión – CLM Puente Piedra</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/auth.css"/>
+
+  <style>
+    .auth-credit {
+      text-align: center;
+      font-size: .75rem;
+      color: var(--text2);
+      margin-top: .5rem;
+      letter-spacing: .3px;
+    }
+    .auth-credit a {
+      color: var(--gold);
+      text-decoration: none;
+      font-weight: 700;
+      transition: color .2s;
+    }
+    .auth-credit a:hover {
+      color: var(--gold2);
+    }
+  </style>
+</head>
+
+<body class="auth-body">
+
+  <div class="auth-container">
+
+    <!-- BRAND -->
+    <div class="auth-brand">
+      <img src="LOGOCLM.png" class="auth-logo" alt="CLM"/>
+      <div>
+        <h1 class="auth-title">CLM Puente Piedra</h1>
+        <p class="auth-sub">Base de Datos de la Iglesia</p>
+      </div>
+    </div>
+
+    <!-- CARD -->
+    <div class="auth-card">
+      <h2 class="auth-card-title">Bienvenido 👋</h2>
+      <p class="auth-card-desc">Ingresa tu correo y contraseña para continuar</p>
+
+      <div id="authError" class="auth-error" style="display:none"></div>
+
+      <form id="loginForm" novalidate autocomplete="off">
+
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input
+            id="loginEmail"
+            type="email"
+            placeholder="correo@ejemplo.com"
+            autocomplete="off"
+            required
+          />
+        </div>
+
+        <div class="form-group" style="margin-top:.9rem">
+          <label>Contraseña</label>
+          <div class="input-password">
+            <input
+              id="loginPassword"
+              type="password"
+              placeholder="Tu contraseña"
+              autocomplete="current-password"
+              required
+            />
+            <button type="button" class="toggle-pass" id="togglePass">👁</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-auth" id="btnLogin">
+          Iniciar Sesión
+        </button>
+
+      </form>
+    </div>
+
+    <!-- CRÉDITO -->
+    <div class="auth-credit">
+      Developed by
+      <a href="https://www.instagram.com/davjstudio" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle; margin:0 .25rem">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        Davj Studio
+      </a>
+    </div>
+
+  </div><!-- /.auth-container -->
+
+</body>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<script>
+  // ── INIT ──
+  firebase.initializeApp({
+    apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+    authDomain:        "clm-iglesia-app.firebaseapp.com",
+    projectId:         "clm-iglesia-app",
+    storageBucket:     "clm-iglesia-app.firebasestorage.app",
+    messagingSenderId: "385996661780",
+    appId:             "1:385996661780:web:e7507f97757e215718b301"
+  });
+
+  const auth = firebase.auth();
+
+  // ── REDIRECCIÓN SI YA HAY SESIÓN ──
+  auth.onAuthStateChanged(user => {
+    if (user) window.location.href = "index.html";
+  });
+
+  // ── TOGGLE CONTRASEÑA ──
+  document.getElementById("togglePass").onclick = () => {
+    const inp = document.getElementById("loginPassword");
+    const btn = document.getElementById("togglePass");
+    if (inp.type === "password") {
+      inp.type = "text";
+      btn.textContent = "🙈";
+    } else {
+      inp.type = "password";
+      btn.textContent = "👁";
+    }
+  };
+
+  // ── SUBMIT LOGIN ──
+  document.getElementById("loginForm").onsubmit = async e => {
+    e.preventDefault();
+
+    const btn   = document.getElementById("btnLogin");
+    const email = document.getElementById("loginEmail").value.trim();
+    const pass  = document.getElementById("loginPassword").value;
+    const err   = document.getElementById("authError");
+
+    btn.disabled    = true;
+    btn.textContent = "Ingresando…";
+    err.style.display = "none";
+
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+      window.location.href = "index.html";
+    } catch (e) {
+      err.style.display = "block";
+      err.textContent   = traducirError(e.code);
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = "Iniciar Sesión";
+    }
+  };
+
+  // ── ERRORES ──
+  function traducirError(code) {
+    const errores = {
+      "auth/user-not-found":         "No existe una cuenta con ese correo.",
+      "auth/wrong-password":         "Contraseña incorrecta.",
+      "auth/invalid-email":          "El correo no es válido.",
+      "auth/too-many-requests":      "Demasiados intentos. Espera un momento.",
+      "auth/invalid-credential":     "Correo o contraseña incorrectos.",
+      "auth/network-request-failed": "Sin conexión. Verifica tu internet."
+    };
+    return errores[code] || "Error al iniciar sesión. Intenta de nuevo.";
+  }
+</script>
+
+</html>
