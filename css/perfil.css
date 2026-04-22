@@ -1,0 +1,120 @@
+/* ══════════════════════════════════════════════
+   perfil.css  –  Estilos de la página de perfil
+══════════════════════════════════════════════ */
+
+/* ── HERO ── */
+.perfil-hero {
+  display: flex; align-items: center; gap: 2rem;
+  background: linear-gradient(135deg, var(--dark3) 0%, var(--dark2) 100%);
+  border: 1px solid var(--dark4);
+  border-radius: 20px; padding: 2rem; margin-bottom: 2rem;
+  flex-wrap: wrap;
+  position: relative; overflow: hidden;
+}
+.perfil-hero::before {
+  content: "✝";
+  position: absolute; right: -1rem; top: -1rem;
+  font-size: 8rem; color: rgba(201,168,76,.04);
+  pointer-events: none;
+}
+
+.perfil-foto {
+  width: 110px; height: 110px; border-radius: 50%; flex-shrink: 0;
+  border: 3px solid var(--gold);
+  overflow: hidden;
+  box-shadow: 0 0 32px var(--gold-glow);
+}
+.perfil-foto-img      { width: 100%; height: 100%; object-fit: cover; }
+.perfil-foto-initials {
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  color: #0D1117; font-weight: 700; font-size: 2.2rem;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.perfil-hero-info { flex: 1; min-width: 200px; }
+.perfil-hero-info h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  background: linear-gradient(90deg, var(--gold), var(--gold2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: .5rem;
+}
+.perfil-badges    { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .7rem; }
+.perfil-hero-meta {
+  display: flex; gap: 1.2rem; flex-wrap: wrap;
+  font-size: .85rem; color: var(--text2);
+}
+
+.perfil-hero-actions { display: flex; gap: .7rem; align-self: flex-start; flex-wrap: wrap; }
+.danger-btn:hover { color: var(--danger) !important; border-color: var(--danger) !important; }
+
+/* ── GRID DE SECCIONES ── */
+.perfil-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.2rem;
+}
+.perfil-section {
+  background: var(--dark2);
+  border: 1px solid var(--dark4);
+  border-radius: var(--radius);
+  padding: 1.3rem;
+  transition: border-color var(--trans);
+}
+.perfil-section:hover { border-color: var(--gold); }
+.perfil-section--full { grid-column: 1 / -1; }
+
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem; margin-bottom: 1rem;
+  color: var(--gold2);
+  border-bottom: 1px solid var(--dark4);
+  padding-bottom: .6rem;
+}
+
+/* ── DETAIL LIST ── */
+.detail-list    { display: flex; flex-direction: column; gap: .4rem; }
+.detail-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .4rem 0; border-bottom: 1px solid var(--dark3);
+  font-size: .85rem; gap: .5rem;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-row .lbl { color: var(--text2); font-weight: 700; flex-shrink: 0; }
+
+/* ── ASISTENCIA ── */
+.attendance-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1rem;
+}
+.attendance-header .section-title { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+
+.att-grid {
+  display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem;
+}
+.att-chip {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .3rem .7rem; border-radius: 20px;
+  font-size: .78rem; font-weight: 700;
+}
+.att-chip--yes { background: rgba(63,185,80,.12); color: var(--success); border: 1px solid rgba(63,185,80,.3); }
+.att-chip--no  { background: rgba(248,81,73,.12);  color: var(--danger);  border: 1px solid rgba(248,81,73,.3); }
+
+.att-resumen {
+  display: flex; gap: 1.5rem; flex-wrap: wrap;
+  font-size: .82rem; color: var(--text2);
+  border-top: 1px solid var(--dark4); padding-top: .8rem;
+}
+.att-empty { color: var(--text2); font-size: .9rem; }
+
+/* ── EXTRAS ── */
+.btn-sm { padding: .4rem .9rem; font-size: .8rem; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+  .perfil-hero { flex-direction: column; text-align: center; }
+  .perfil-hero-meta { justify-content: center; }
+  .perfil-hero-actions { justify-content: center; }
+  .perfil-grid { grid-template-columns: 1fr; }
+}

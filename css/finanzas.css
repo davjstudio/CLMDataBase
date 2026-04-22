@@ -1,0 +1,95 @@
+/* ══════════════════════════════════════════════
+   finanzas.css
+══════════════════════════════════════════════ */
+.fin-main { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+/* ── TOOLBAR ── */
+.fin-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.4rem; flex-wrap: wrap; gap: 1rem;
+}
+.fin-tabs { display: flex; gap: .4rem; }
+.fin-tab {
+  background: none; border: none; cursor: pointer;
+  font-family: 'Lato', sans-serif; font-size: .9rem; font-weight: 700;
+  color: var(--text2); padding: .45rem 1rem; border-radius: 8px;
+  transition: all .2s;
+}
+.fin-tab:hover  { background: var(--dark3); color: var(--text); }
+.fin-tab.active { background: rgba(201,168,76,.12); color: var(--gold); }
+
+/* ── SUBTOTAL ── */
+.fin-subtotal {
+  font-size: .82rem; color: var(--text2);
+  margin-bottom: .8rem;
+}
+.fin-subtotal strong { color: var(--gold); }
+
+/* ── TABLA ── */
+.fin-tabla-wrap { overflow-x: auto; }
+.fin-tabla {
+  width: 100%; border-collapse: collapse; font-size: .85rem;
+}
+.fin-tabla thead tr { border-bottom: 2px solid var(--dark4); }
+.fin-tabla th {
+  text-align: left; padding: .65rem .8rem;
+  font-size: .72rem; font-weight: 700;
+  color: var(--text2); text-transform: uppercase; letter-spacing: .5px;
+  white-space: nowrap;
+}
+.fin-tabla td {
+  padding: .7rem .8rem; border-bottom: 1px solid var(--dark3);
+  color: var(--text); vertical-align: middle;
+}
+.fin-tabla tbody tr:hover { background: var(--dark3); }
+.fin-tabla tbody tr:last-child td { border-bottom: none; }
+
+.fin-tipo-badge { font-weight: 700; font-size: .82rem; }
+.fin-metodo     { font-size: .78rem; color: var(--text2); }
+.fin-nota       { font-size: .78rem; color: var(--text2); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fin-monto      { font-weight: 700; color: var(--gold); white-space: nowrap; }
+
+/* ── RESUMEN ── */
+.fin-resumen-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+.fin-card {
+  background: var(--dark2); border: 1px solid var(--dark4);
+  border-radius: var(--radius); padding: 1.4rem;
+  transition: border-color .2s;
+}
+.fin-card:hover { border-color: var(--gold); }
+.fin-card--full { grid-column: 1/-1; }
+.fin-card-title {
+  font-family: 'Playfair Display', serif; font-size: 1rem;
+  color: var(--gold2); margin-bottom: 1.2rem;
+  border-bottom: 1px solid var(--dark4); padding-bottom: .6rem;
+}
+
+/* ── TOP CONTRIBUYENTES ── */
+.top-item {
+  display: flex; align-items: center; gap: .8rem;
+  padding: .6rem 0; border-bottom: 1px solid var(--dark3);
+  font-size: .85rem;
+}
+.top-item:last-child { border-bottom: none; }
+.top-rank {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(135deg,var(--gold),var(--gold2));
+  color: #0D1117; font-weight: 700; font-size: .75rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.top-nombre { flex: 1; }
+.top-monto  { font-weight: 700; color: var(--gold); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .fin-main { padding: 1rem; }
+  .fin-resumen-grid { grid-template-columns: 1fr; }
+  .fin-tabla th:nth-child(4),
+  .fin-tabla td:nth-child(4),
+  .fin-tabla th:nth-child(5),
+  .fin-tabla td:nth-child(5) { display: none; }
+}
