@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registrarse – CLM Puente Piedra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/auth.css"/>
+  <style>
+    .rol-selector { display: flex; flex-direction: column; gap: .5rem; margin-top: .4rem; }
+    .rol-option {
+      display: flex; align-items: center; gap: .9rem;
+      background: var(--dark3); border: 1px solid var(--dark4);
+      border-radius: 10px; padding: .8rem 1rem; cursor: pointer;
+      transition: all .2s;
+    }
+    .rol-option:hover { border-color: var(--gold); background: rgba(201,168,76,.05); }
+    .rol-option.selected {
+      border-color: var(--gold);
+      background: rgba(201,168,76,.1);
+    }
+    .rol-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .rol-option div { flex: 1; }
+    .rol-option strong { display: block; font-size: .88rem; color: var(--text); }
+    .rol-option small  { font-size: .75rem; color: var(--text2); }
+    .rol-check {
+      font-size: .9rem; color: var(--gold);
+      opacity: 0; transition: opacity .2s;
+    }
+    .rol-option.selected .rol-check { opacity: 1; }
+  </style>
+</head>
+<body class="auth-body">
+
+<div class="auth-container">
+  <div class="auth-brand">
+    <img src="LOGOCLM.png" class="auth-logo" alt="CLM"/>
+    <div>
+      <h1 class="auth-title">CLM Puente Piedra</h1>
+      <p class="auth-sub">Base de Datos de la Iglesia</p>
+    </div>
+  </div>
+
+  <div class="auth-card">
+    <h2 class="auth-card-title">Crear cuenta</h2>
+    <p class="auth-card-desc">Completa los datos para registrarte</p>
+
+    <div id="authError"   class="auth-error"   style="display:none"></div>
+    <div id="authSuccess" class="auth-success" style="display:none"></div>
+
+    <form id="registerForm" novalidate autocomplete="off">
+      <div class="form-group">
+        <label>Nombre completo</label>
+        <input id="regNombre" type="text" placeholder="Ej: Juan Pérez"
+               autocomplete="off" required/>
+      </div>
+      <div class="form-group" style="margin-top:.9rem">
+        <label>Correo electrónico</label>
+        <input id="regEmail" type="email" placeholder="correo@ejemplo.com"
+               autocomplete="off" required/>
+      </div>
+      <div class="form-group" style="margin-top:.9rem">
+        <label>Contraseña</label>
+        <div class="input-password">
+          <input id="regPassword" type="password" placeholder="Mínimo 6 caracteres"
+                 autocomplete="new-password" required/>
+          <button type="button" class="toggle-pass" id="togglePass1">👁</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:.9rem">
+        <label>Confirmar contraseña</label>
+        <div class="input-password">
+          <input id="regPassword2" type="password" placeholder="Repite tu contraseña"
+                 autocomplete="new-password" required/>
+          <button type="button" class="toggle-pass" id="togglePass2">👁</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:.9rem">
+        <label>Rol</label>
+        <div class="rol-selector" id="rolSelector">
+          <div class="rol-option selected" data-rol="colaborador">
+            <span class="rol-icon">🤝</span>
+            <div>
+              <strong>Colaborador</strong>
+              <small>Miembros, eventos y ministerios</small>
+            </div>
+            <span class="rol-check">✓</span>
+          </div>
+          <div class="rol-option" data-rol="finanzas">
+            <span class="rol-icon">💰</span>
+            <div>
+              <strong>Finanzas</strong>
+              <small>Solo gestión de finanzas</small>
+            </div>
+            <span class="rol-check">✓</span>
+          </div>
+          <div class="rol-option" data-rol="admin">
+            <span class="rol-icon">👑</span>
+            <div>
+              <strong>Admin</strong>
+              <small>Acceso total a todo</small>
+            </div>
+            <span class="rol-check">✓</span>
+          </div>
+        </div>
+        <input type="hidden" id="regRol" value="colaborador"/>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-auth" id="btnRegister">
+        Crear Cuenta
+      </button>
+    </form>
+
+    <p class="auth-switch">
+      ¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyC_DVPcMOJQNLsKXRg9vTNISQaOHGqYYrs",
+  authDomain:        "clm-iglesia-app.firebaseapp.com",
+  projectId:         "clm-iglesia-app",
+  storageBucket:     "clm-iglesia-app.firebasestorage.app",
+  messagingSenderId: "385996661780",
+  appId:             "1:385996661780:web:e7507f97757e215718b301"
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ⚠️ IMPORTANTE: usamos una bandera para evitar que onAuthStateChanged
+// redirija ANTES de que guardemos el nombre en Firestore
+let guardandoRegistro = false;
+
+auth.onAuthStateChanged(user => {
+  if (user && !guardandoRegistro) {
+    window.location.href = "index.html";
+  }
+});
+
+function toggleVer(inputId, btnId) {
+  document.getElementById(btnId).onclick = () => {
+    const inp = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    if (inp.type === "password") { inp.type = "text";     btn.textContent = "🙈"; }
+    else                         { inp.type = "password"; btn.textContent = "👁";  }
+  };
+}
+toggleVer("regPassword",  "togglePass1");
+toggleVer("regPassword2", "togglePass2");
+
+document.getElementById("registerForm").onsubmit = async e => {
+  e.preventDefault();
+  const btn    = document.getElementById("btnRegister");
+  const nombre = document.getElementById("regNombre").value.trim();
+  const email  = document.getElementById("regEmail").value.trim();
+  const pass1  = document.getElementById("regPassword").value;
+  const pass2  = document.getElementById("regPassword2").value;
+
+  document.getElementById("authError").style.display   = "none";
+  document.getElementById("authSuccess").style.display = "none";
+
+  if (!nombre)          { mostrarError("Ingresa tu nombre completo."); return; }
+  if (pass1.length < 6) { mostrarError("La contraseña debe tener al menos 6 caracteres."); return; }
+  if (pass1 !== pass2)  { mostrarError("Las contraseñas no coinciden."); return; }
+
+  btn.disabled = true; btn.textContent = "Registrando…";
+
+  // Activar bandera ANTES de crear el usuario
+  guardandoRegistro = true;
+
+  try {
+    // 1. Crear usuario en Firebase Auth
+    const cred = await auth.createUserWithEmailAndPassword(email, pass1);
+
+    // 2. Guardar nombre en Firestore ANTES de redirigir
+    await db.collection("usuarios").doc(cred.user.uid).set({
+      nombre,
+      email,
+      creadoEn: new Date().toISOString()
+    });
+
+    // 3. Recién ahora redirigir
+    document.getElementById("authSuccess").style.display = "block";
+    document.getElementById("authSuccess").textContent   = "✅ Cuenta creada. Redirigiendo…";
+    
+    guardandoRegistro = false;
+    setTimeout(() => window.location.href = "index.html", 1500);
+
+  } catch(err) {
+    guardandoRegistro = false;
+    mostrarError(traducirError(err.code));
+  } finally {
+    btn.disabled = false; btn.textContent = "Crear Cuenta";
+  }
+};
+
+function mostrarError(msg) {
+  const err = document.getElementById("authError");
+  err.style.display = "block";
+  err.textContent   = msg;
+}
+function traducirError(code) {
+  const e = {
+    "auth/email-already-in-use": "Ya existe una cuenta con ese correo.",
+    "auth/invalid-email":        "El correo no es válido.",
+    "auth/weak-password":        "Contraseña muy débil. Usa al menos 6 caracteres.",
+    "auth/network-request-failed": "Sin conexión. Verifica tu internet."
+  };
+  return e[code] || "Error al registrarse. Intenta de nuevo.";
+}
+
+// ── SELECTOR DE ROL ──
+document.querySelectorAll(".rol-option").forEach(opt => {
+  opt.addEventListener("click", () => {
+    document.querySelectorAll(".rol-option").forEach(o => o.classList.remove("selected"));
+    opt.classList.add("selected");
+    document.getElementById("regRol").value = opt.dataset.rol;
+  });
+});
+</script>
+</body>
+</html>

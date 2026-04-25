@@ -38,7 +38,6 @@
 <header>
   <div class="header-inner">
 
-    <!-- LOGO -->
     <a href="index.html" class="header-brand">
       <img src="LOGOCLM.png" class="logo-cross" alt="CLM"/>
       <div class="header-text">
@@ -47,26 +46,22 @@
       </div>
     </a>
 
-    <!-- NAV CENTRAL -->
     <nav class="header-nav" id="headerNav">
-      <a href="index.html" class="nav-link ">👥 Miembros</a>
-          <a href="dashboard.html" class="nav-link ">📊 Dashboard</a>
-          <a href="ministerios.html" class="nav-link ">⛪ Ministerios</a>
-          <a href="tipos.html" class="nav-link ">🏷️ Tipos</a>
-          <a href="eventos.html" class="nav-link ">📅 Eventos</a>
-          <a href="finanzas.html" class="nav-link ">💰 Finanzas</a>
-          
+      <a href="index.html" class="nav-link  nav-link--active">👥 Miembros</a>
+      <a href="dashboard.html" class="nav-link">📊 Dashboard</a>
+      <a href="ministerios.html" class="nav-link">⛪ Ministerios</a>
+      <a href="tipos.html" class="nav-link">🏷️ Tipos</a>
+      <a href="eventos.html" class="nav-link">📅 Eventos</a>
+      <a href="finanzas.html" class="nav-link finanzas-link">💰 Finanzas</a>
+      <a href="usuarios.html" class="nav-link usuarios-link">👤 Usuarios</a>
     </nav>
 
-    <!-- ACCIONES DERECHA -->
     <div class="header-right">
-      <a href="index.html" class="btn btn-ghost">← Volver</a>
       <span id="userNombre" class="user-email header-user"></span>
-      <button id="btnLogout" class="btn btn-ghost btn-logout">🚪</button>
-      
+      <button id="btnLogout" class="btn-logout">🚪</button>
+      <a href="index.html" class="btn btn-ghost">← Volver</a>
     </div>
 
-    <!-- HAMBURGUESA -->
     <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
 
   </div>
@@ -159,16 +154,18 @@ if (!memberId) {
   if (el) el.textContent = "👤 " + nombre;
 
   // ── Ajustar nav según rol ──
-  if (rol === "colaborador") {
-    document.querySelectorAll('a[href="finanzas.html"]').forEach(a => a.style.display = "none");
-    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
+  if (rol === "admin") {
+    // Admin ve TODO
+    document.querySelectorAll('.finanzas-link').forEach(a => a.classList.add("rol-visible"));
+    document.querySelectorAll('.usuarios-link').forEach(a => a.classList.add("rol-visible"));
+  } else if (rol === "colaborador") {
+    // Colaborador — solo miembros/eventos/ministerios
+    // finanzas-link y usuarios-link quedan ocultos (CSS default)
   } else if (rol === "finanzas") {
-    document.querySelectorAll('a:not([href="finanzas.html"])').forEach(a => {
-      if (a.classList.contains("nav-link")) a.style.display = "none";
-    });
-    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "none");
-  } else if (rol === "admin") {
-    document.querySelectorAll('a[href="usuarios.html"]').forEach(a => a.style.display = "");
+    // Finanzas — mostrar finanzas, ocultar todo lo demás del nav
+    document.querySelectorAll('.finanzas-link').forEach(a => a.classList.add("rol-visible"));
+    document.querySelectorAll('.nav-link:not(.finanzas-link)').forEach(a => a.classList.add("rol-hidden"));
+    document.querySelectorAll('.bottom-nav a:not(.finanzas-link)').forEach(a => a.classList.add("rol-hidden"));
   }
 
   // ── Cargar contenido ──
@@ -461,9 +458,10 @@ function showAttendanceModal() {
   overlay.querySelector("#btnAusente").onclick  = () => registrar(false);
 }
 
-// ── HAMBURGUESA ──
-const menuToggle   = document.getElementById("menuToggle");
-const headerNav    = document.getElementById("headerNav");
+
+// ── MENÚ MÓVIL ──
+const menuToggle = document.getElementById("menuToggle");
+const headerNav  = document.getElementById("headerNav");
 if (menuToggle && headerNav) {
   menuToggle.addEventListener("click", () => {
     headerNav.classList.toggle("open");
