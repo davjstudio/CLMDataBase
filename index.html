@@ -60,6 +60,7 @@
       <span id="userNombre" class="user-email header-user"></span>
       <button id="btnLogout" class="btn-logout">🚪</button>
       <button id="btnNuevo" class="btn btn-primary">+ Nuevo Miembro</button>
+      <button id="btnExport" class="btn btn-ghost">📥 Exportar</button>
     </div>
 
     <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
@@ -126,6 +127,13 @@
       <div class="form-grid">
         <div class="form-group form-full"><label>Nombre Completo *</label><input id="nombre" type="text" placeholder="Ej: María Lucía Torres Ríos" required/></div>
         <div class="form-group"><label>Fecha de Nacimiento</label><input id="fechaNacimiento" type="date"/></div>
+        <div class="form-group"><label>Género</label>
+          <select id="genero">
+            <option value="">— No especificado —</option>
+            <option value="Masculino">👨 Masculino</option>
+            <option value="Femenino">👩 Femenino</option>
+          </select>
+        </div>
         <div class="form-group"><label>Teléfono</label><input id="telefono" type="tel" placeholder="Ej: 987 654 321"/></div>
         <div class="form-group form-full"><label>Lugar de Residencia</label><input id="residencia" type="text" placeholder="Ej: Puente Piedra, Lima"/></div>
         <div class="form-group form-full"><label>Correo Electrónico</label><input id="correo" type="email" placeholder="correo@ejemplo.com"/></div>
@@ -150,6 +158,20 @@
         <button type="submit" class="btn btn-primary" id="btnSave">Guardar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- NOTIFICACIÓN CUMPLEAÑOS HOY -->
+<div class="modal-overlay" id="modalBdayNotif">
+  <div class="modal modal--wide" style="max-width:500px">
+    <div class="modal-header">
+      <h2>🎉 ¡Cumpleaños Hoy!</h2>
+      <button class="modal-close" id="btnCerrarBdayNotif">✕</button>
+    </div>
+    <div id="bdayNotifList" class="bday-list"></div>
+    <div class="form-footer">
+      <button class="btn btn-primary" id="btnCerrarBdayNotif2" style="width:100%">¡Entendido! 🎂</button>
+    </div>
   </div>
 </div>
 
@@ -196,7 +218,6 @@ const auth = firebase.auth();
 // ══════════════════════════════════════
 function calcAge(dob) {
   if (!dob) return "–";
-  // Parsear manualmente para evitar UTC offset
   const [y, mo, d] = dob.split("-").map(Number);
   const n = new Date();
   let a = n.getFullYear() - y;
@@ -213,7 +234,6 @@ function initials(name) {
 }
 function birthdayToday(dob) {
   if (!dob) return false;
-  // Parsear manualmente para evitar problema de zona horaria UTC
   const [y, m, d] = dob.split("-").map(Number);
   const n = new Date();
   return m - 1 === n.getMonth() && d === n.getDate();
@@ -235,7 +255,7 @@ const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto"
 let allMembers = [];
 
 // ══════════════════════════════════════
-//  AUTH GUARD — leer nombre de Firestore
+//  AUTH GUARD
 // ══════════════════════════════════════
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href = "login.html"; return; }
@@ -252,39 +272,25 @@ auth.onAuthStateChanged(async user => {
     nombre = user.email.split("@")[0];
   }
 
-  // ── CONTROL DE ACCESO ──
   const rolesPermitidos = ["admin", "colaborador"];
   if (!rolesPermitidos.includes(rol)) {
-    // No tiene permiso — redirigir
     window.location.href = (rol === "finanzas") ? "finanzas.html" : "index.html";
     return;
   }
 
-  // ── Mostrar página (oculta hasta verificar rol) ──
   document.body.classList.add("auth-ok");
-
-  // ── Mostrar nombre ──
   const el = document.getElementById("userNombre");
   if (el) el.textContent = "👤 " + nombre;
 
-  // ── Ajustar nav según rol ──
   if (rol === "admin") {
-    // Admin ve TODO
     document.querySelectorAll('.finanzas-link').forEach(a => a.classList.add("rol-visible"));
     document.querySelectorAll('.usuarios-link').forEach(a => a.classList.add("rol-visible"));
   } else if (rol === "colaborador") {
-    // Colaborador — solo miembros/eventos/ministerios
-    // finanzas-link y usuarios-link quedan ocultos (CSS default)
-  } else if (rol === "finanzas") {
-    // Finanzas — mostrar finanzas, ocultar todo lo demás del nav
-    document.querySelectorAll('.finanzas-link').forEach(a => a.classList.add("rol-visible"));
-    document.querySelectorAll('.nav-link:not(.finanzas-link)').forEach(a => a.classList.add("rol-hidden"));
-    document.querySelectorAll('.bottom-nav a:not(.finanzas-link)').forEach(a => a.classList.add("rol-hidden"));
+    // Hidden by default CSS
   }
 
-  // ── Cargar contenido ──
   loadTiposEnSelect();
-    loadMembers();
+  loadMembers();
 });
 
 document.getElementById("btnLogout").addEventListener("click", async () => {
@@ -300,7 +306,6 @@ async function loadTiposEnSelect() {
   try {
     const snap = await db.collection("tiposPersona").orderBy("nombre").get();
     const sel = document.getElementById("estado");
-    // Remove previously added custom options (keep first 5 default)
     while (sel.options.length > 5) sel.remove(5);
     snap.docs.forEach(d => {
       const opt = document.createElement("option");
@@ -308,7 +313,7 @@ async function loadTiposEnSelect() {
       opt.textContent = d.data().nombre;
       sel.appendChild(opt);
     });
-  } catch(e) { /* silently fail */ }
+  } catch(e) {}
 }
 
 async function loadMembers() {
@@ -318,7 +323,6 @@ async function loadMembers() {
   try {
     const snap = await db.collection("miembros").orderBy("nombre").get();
     allMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    grid.innerHTML = "";
     if (allMembers.length === 0) {
       grid.innerHTML = `<div class="state-box"><div class="state-icon">👥</div><p>No hay miembros aún. ¡Agrega el primero!</p></div>`;
     } else {
@@ -326,6 +330,7 @@ async function loadMembers() {
       populateMinisterioFilter();
     }
     updateStats();
+    mostrarNotifCumpleanos(allMembers);
   } catch(e) {
     grid.innerHTML = `<div class="state-box state-error"><div class="state-icon">⚠️</div><p>Error Firebase:<br><small>${e.message}</small></p></div>`;
   } finally {
@@ -334,25 +339,58 @@ async function loadMembers() {
 }
 
 // ══════════════════════════════════════
+//  NOTIFICACIÓN CUMPLEAÑOS
+// ══════════════════════════════════════
+function mostrarNotifCumpleanos(members) {
+  if (sessionStorage.getItem("bdayNotifMostrada")) return;
+  const hoy = members.filter(m => birthdayToday(m.fechaNacimiento));
+  if (hoy.length === 0) return;
+
+  const lista = document.getElementById("bdayNotifList");
+  lista.innerHTML = hoy.map(m => {
+    const edad = calcAge(m.fechaNacimiento);
+    const foto = m.fotoUrl
+      ? `<img src="${m.fotoUrl}" class="bday-avatar-img" alt="${m.nombre}"/>`
+      : `<div class="bday-avatar-initials">${initials(m.nombre)}</div>`;
+    return `<div class="bday-item">
+      <div class="bday-avatar">${foto}</div>
+      <div class="bday-info">
+        <strong>${m.nombre}</strong>
+        <span>🎂 Cumple ${edad+1} años hoy</span>
+      </div>
+      <span class="bday-tag today">¡Hoy! 🎉</span>
+    </div>`;
+  }).join("");
+
+  document.getElementById("modalBdayNotif").classList.add("open");
+  sessionStorage.setItem("bdayNotifMostrada", "1");
+}
+
+// ══════════════════════════════════════
 //  RENDER CARD
 // ══════════════════════════════════════
 function renderCard(m) {
   const card = document.createElement("div");
-  card.className          = "card";
-  card.dataset.id         = m.id;
-  card.dataset.search     = `${m.nombre} ${m.residencia||""} ${m.ministerio||""}`.toLowerCase();
+  card.className      = "card";
+  card.dataset.id     = m.id;
+  card.dataset.search = `${m.nombre} ${m.residencia||""} ${m.ministerio||""}`.toLowerCase();
   card.dataset.ministerio = (m.ministerio||"").toLowerCase();
   card.dataset.estado     = (m.estado||"").toLowerCase();
+  
   const age  = calcAge(m.fechaNacimiento);
   const bday = birthdayToday(m.fechaNacimiento);
   const foto = m.fotoUrl
     ? `<img src="${m.fotoUrl}" class="avatar-img" alt="${m.nombre}"/>`
     : `<div class="avatar-initials">${initials(m.nombre)}</div>`;
+  
+  // Icono de género visual
+  const genIcon = m.genero === "Masculino" ? "👨" : (m.genero === "Femenino" ? "👩" : "");
+
   card.innerHTML = `
     <div class="card-top">
       <div class="avatar">${foto}${bday ? '<span class="bday-badge">🎂</span>' : ""}</div>
       <div class="card-info">
-        <h3 title="${m.nombre}">${m.nombre}</h3>
+        <h3 title="${m.nombre}">${genIcon} ${m.nombre}</h3>
         <span class="badge badge--ministerio">${m.ministerio||"Congregante"}</span>
         <span class="badge badge--estado badge--${(m.estado||"activo").toLowerCase()}">${m.estado||"Activo"}</span>
       </div>
@@ -377,18 +415,12 @@ function renderCard(m) {
   return card;
 }
 
-// ══════════════════════════════════════
-//  STATS
-// ══════════════════════════════════════
 function updateStats() {
   document.getElementById("statTotal").textContent   = allMembers.length;
   document.getElementById("statActivos").textContent = allMembers.filter(m => (m.estado||"").toLowerCase() === "activo").length;
   document.getElementById("statBday").textContent    = allMembers.filter(m => birthdayToday(m.fechaNacimiento)).length;
 }
 
-// ══════════════════════════════════════
-//  FILTROS
-// ══════════════════════════════════════
 function populateMinisterioFilter() {
   const sel = document.getElementById("filterMinisterio");
   const ministerios = [...new Set(allMembers.map(m => m.ministerio).filter(Boolean))].sort();
@@ -399,6 +431,7 @@ function populateMinisterioFilter() {
     sel.appendChild(opt);
   });
 }
+
 function applyFilters() {
   const txt = document.getElementById("searchInput").value.toLowerCase();
   const est = document.getElementById("filterEstado").value.toLowerCase();
@@ -412,10 +445,9 @@ function applyFilters() {
 }
 
 // ══════════════════════════════════════
-//  FOTO
+//  FOTO LOGIC
 // ══════════════════════════════════════
 let fotoPendienteBase64 = "";
-
 function setupFotoPreview() {
   const input = document.getElementById("fotoInput");
   const area  = document.getElementById("fotoUploadArea");
@@ -432,10 +464,9 @@ function setupFotoPreview() {
       const canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      const base64 = canvas.toDataURL("image/jpeg", 0.7);
-      fotoPendienteBase64 = base64;
+      fotoPendienteBase64 = canvas.toDataURL("image/jpeg", 0.7);
       const prev = document.getElementById("fotoPreview");
-      prev.src = base64; prev.style.display = "block";
+      prev.src = fotoPendienteBase64; prev.style.display = "block";
       URL.revokeObjectURL(url);
     };
     img.src = url;
@@ -445,50 +476,34 @@ setupFotoPreview();
 
 function resetFotoInput() {
   fotoPendienteBase64 = "";
-  const old   = document.getElementById("fotoInput");
+  const old = document.getElementById("fotoInput");
   const nuevo = old.cloneNode(false);
-  nuevo.id    = "fotoInput";
+  nuevo.id = "fotoInput";
   old.parentNode.replaceChild(nuevo, old);
   document.getElementById("fotoUploadArea").onclick = () => nuevo.click();
-  nuevo.onchange = () => {
-    const file = nuevo.files[0]; if (!file) return;
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const MAX = 400;
-      let w = img.width, h = img.height;
-      if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
-      else if (h > MAX)     { w = w * MAX / h; h = MAX; }
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      const base64 = canvas.toDataURL("image/jpeg", 0.7);
-      fotoPendienteBase64 = base64;
-      const prev = document.getElementById("fotoPreview");
-      prev.src = base64; prev.style.display = "block";
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
-  };
+  nuevo.onchange = old.onchange; // Rebind the same onchange logic
 }
 
 // ══════════════════════════════════════
-//  MODAL
+//  MODAL ACTIONS
 // ══════════════════════════════════════
 function openNewModal() {
   document.getElementById("modalTitle").textContent    = "Nuevo Miembro";
   document.getElementById("memberForm").reset();
   document.getElementById("editId").value              = "";
   document.getElementById("currentFotoUrl").value      = "";
+  document.getElementById("genero").value              = ""; // Reset genero
   document.getElementById("fotoPreview").style.display = "none";
   resetFotoInput();
   document.getElementById("modal").classList.add("open");
 }
+
 function openEditModal(m) {
   document.getElementById("modalTitle").textContent    = "Editar Miembro";
   document.getElementById("editId").value              = m.id;
   document.getElementById("nombre").value              = m.nombre||"";
   document.getElementById("fechaNacimiento").value     = m.fechaNacimiento||"";
+  document.getElementById("genero").value              = m.genero||""; // Carga género
   document.getElementById("telefono").value            = m.telefono||"";
   document.getElementById("residencia").value          = m.residencia||"";
   document.getElementById("correo").value              = m.correo||"";
@@ -506,30 +521,33 @@ function openEditModal(m) {
   resetFotoInput();
   document.getElementById("modal").classList.add("open");
 }
+
 function closeModal() {
   document.getElementById("modal").classList.remove("open");
   document.getElementById("memberForm").reset();
-  document.getElementById("editId").value              = "";
-  document.getElementById("currentFotoUrl").value      = "";
-  document.getElementById("fotoPreview").style.display = "none";
 }
 
 // ══════════════════════════════════════
-//  GUARDAR
+//  GUARDAR / ACTUALIZAR
 // ══════════════════════════════════════
 async function handleSave(e) {
   e.preventDefault();
   const btn    = document.getElementById("btnSave");
   const nombre = document.getElementById("nombre").value.trim();
   if (!nombre) { alert("El nombre es obligatorio."); return; }
+  
   btn.disabled = true; btn.textContent = "Guardando…";
   showLoader("Guardando miembro…");
+  
   const editId  = document.getElementById("editId").value;
   let   fotoUrl = document.getElementById("currentFotoUrl").value || "";
+  
   try {
     if (fotoPendienteBase64) fotoUrl = fotoPendienteBase64;
+    
     const data = {
       nombre,
+      genero:             document.getElementById("genero").value, // Captura género
       fechaNacimiento:    document.getElementById("fechaNacimiento").value,
       residencia:         document.getElementById("residencia").value.trim(),
       telefono:           document.getElementById("telefono").value.trim(),
@@ -543,6 +561,7 @@ async function handleSave(e) {
       familia:            document.getElementById("familia").value.trim(),
       fotoUrl
     };
+
     if (editId) {
       await db.collection("miembros").doc(editId).update(data);
     } else {
@@ -552,16 +571,13 @@ async function handleSave(e) {
     closeModal();
     await loadMembers();
   } catch(err) {
-    hideLoader();
     alert("❌ Error al guardar:\n" + err.message);
   } finally {
     btn.disabled = false; btn.textContent = "Guardar";
+    hideLoader();
   }
 }
 
-// ══════════════════════════════════════
-//  ELIMINAR
-// ══════════════════════════════════════
 async function handleDelete(id, nombre) {
   if (!confirm(`¿Eliminar a "${nombre}"? No se puede deshacer.`)) return;
   try {
@@ -569,13 +585,13 @@ async function handleDelete(id, nombre) {
     await db.collection("miembros").doc(id).delete();
     await loadMembers();
   } catch(err) {
-    hideLoader();
     alert("❌ Error: " + err.message);
+    hideLoader();
   }
 }
 
 // ══════════════════════════════════════
-//  CUMPLEAÑOS
+//  CUMPLEAÑOS / EXPORTAR
 // ══════════════════════════════════════
 function showBirthdays() {
   const mes   = new Date().getMonth();
@@ -590,27 +606,18 @@ function showBirthdays() {
     container.innerHTML = lista.map(m => {
       const dias = daysUntilBirthday(m.fechaNacimiento);
       const edad = calcAge(m.fechaNacimiento) + 1;
-      const foto = m.fotoUrl
-        ? `<img src="${m.fotoUrl}" class="bday-avatar-img" alt="${m.nombre}"/>`
-        : `<div class="bday-avatar-initials">${initials(m.nombre)}</div>`;
-      const tag = dias === 0
-        ? `<span class="bday-tag today">¡Hoy! 🎉</span>`
-        : `<span class="bday-tag">${dias} día${dias !== 1 ? "s" : ""}</span>`;
-      return `<div class="bday-item"><div class="bday-avatar">${foto}</div>
-        <div class="bday-info"><strong>${m.nombre}</strong><span>${fmtDate(m.fechaNacimiento)} · Cumple ${edad} años</span></div>
-        ${tag}</div>`;
+      const foto = m.fotoUrl ? `<img src="${m.fotoUrl}" class="bday-avatar-img"/>` : `<div class="bday-avatar-initials">${initials(m.nombre)}</div>`;
+      const tag = dias === 0 ? `<span class="bday-tag today">¡Hoy! 🎉</span>` : `<span class="bday-tag">${dias} día${dias !== 1 ? "s" : ""}</span>`;
+      return `<div class="bday-item"><div class="bday-avatar">${foto}</div><div class="bday-info"><strong>${m.nombre}</strong><span>${fmtDate(m.fechaNacimiento)} · Cumple ${edad} años</span></div>${tag}</div>`;
     }).join("");
   }
   document.getElementById("modalBirthdays").classList.add("open");
 }
 
-// ══════════════════════════════════════
-//  EXPORTAR CSV
-// ══════════════════════════════════════
 function exportToCSV() {
-  const headers = ["Nombre","Nacimiento","Edad","Teléfono","Correo","Residencia","Ministerio","Estado","Bautismo","Membresía","Contacto Emergencia","Tel. Emergencia","Familia"];
+  const headers = ["Nombre","Género","Nacimiento","Edad","Teléfono","Correo","Residencia","Ministerio","Estado","Bautismo","Membresía","Contacto Emergencia","Tel. Emergencia","Familia"];
   const rows = allMembers.map(m => [
-    m.nombre, m.fechaNacimiento, calcAge(m.fechaNacimiento),
+    m.nombre, (m.genero || "–"), m.fechaNacimiento, calcAge(m.fechaNacimiento),
     m.telefono, m.correo, m.residencia, m.ministerio, m.estado,
     m.fechaBautismo, m.fechaMembresia, m.contactoEmergencia, m.telefonoEmergencia, m.familia
   ].map(v => `"${(v||"").toString().replace(/"/g,'""')}"`));
@@ -618,50 +625,40 @@ function exportToCSV() {
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
-  a.href = url; a.download = `CLM_PuentePiedra_${new Date().toISOString().slice(0,10)}.csv`;
+  a.href = url; a.download = `CLM_Export_${new Date().toISOString().slice(0,10)}.csv`;
   a.click(); URL.revokeObjectURL(url);
 }
 
 // ══════════════════════════════════════
-//  EVENTOS
+//  EVENT LISTENERS
 // ══════════════════════════════════════
-document.getElementById("btnNuevo").addEventListener("click", openNewModal);
-document.getElementById("btnCerrar").addEventListener("click", closeModal);
-document.getElementById("btnCancelar").addEventListener("click", closeModal);
-document.getElementById("modal").addEventListener("click", e => { if (e.target === e.currentTarget) closeModal(); });
-document.getElementById("memberForm").addEventListener("submit", handleSave);
-document.getElementById("btnBirthdays").addEventListener("click", showBirthdays);
-document.getElementById("btnCerrarBday").addEventListener("click", () => document.getElementById("modalBirthdays").classList.remove("open"));
-document.getElementById("modalBirthdays").addEventListener("click", e => { if (e.target === e.currentTarget) e.target.classList.remove("open"); });
-document.getElementById("btnExport").addEventListener("click", exportToCSV);
-document.getElementById("searchInput").addEventListener("input", applyFilters);
-document.getElementById("filterEstado").addEventListener("change", applyFilters);
-document.getElementById("filterMinisterio").addEventListener("change", applyFilters);
-document.getElementById("btnLimpiarFiltros").addEventListener("click", () => {
-  document.getElementById("searchInput").value      = "";
-  document.getElementById("filterEstado").value     = "";
+document.getElementById("btnCerrarBdayNotif").onclick = () => document.getElementById("modalBdayNotif").classList.remove("open");
+document.getElementById("btnCerrarBdayNotif2").onclick = () => document.getElementById("modalBdayNotif").classList.remove("open");
+document.getElementById("btnNuevo").onclick = openNewModal;
+document.getElementById("btnCerrar").onclick = closeModal;
+document.getElementById("btnCancelar").onclick = closeModal;
+document.getElementById("memberForm").onsubmit = handleSave;
+document.getElementById("btnBirthdays").onclick = showBirthdays;
+document.getElementById("btnCerrarBday").onclick = () => document.getElementById("modalBirthdays").classList.remove("open");
+document.getElementById("btnExport").onclick = exportToCSV;
+document.getElementById("searchInput").oninput = applyFilters;
+document.getElementById("filterEstado").onchange = applyFilters;
+document.getElementById("filterMinisterio").onchange = applyFilters;
+document.getElementById("btnLimpiarFiltros").onclick = () => {
+  document.getElementById("searchInput").value = "";
+  document.getElementById("filterEstado").value = "";
   document.getElementById("filterMinisterio").value = "";
   applyFilters();
-});
+};
 </script>
 
-<!-- BOTTOM NAV MÓVIL -->
+<!-- BOTTOM NAV -->
 <nav class="bottom-nav">
-  <a href="index.html" class="active">
-    <span class="bnav-icon">👥</span>Miembros
-  </a>
-  <a href="dashboard.html" class="">
-    <span class="bnav-icon">📊</span>Dashboard
-  </a>
-  <a href="ministerios.html" class="">
-    <span class="bnav-icon">⛪</span>Ministerios
-  </a>
-  <a href="eventos.html" class="">
-    <span class="bnav-icon">📅</span>Eventos
-  </a>
-  <a href="finanzas.html" class="finanzas-link">
-    <span class="bnav-icon">💰</span>Finanzas
-  </a>
+  <a href="index.html" class="active"><span class="bnav-icon">👥</span>Miembros</a>
+  <a href="dashboard.html"><span class="bnav-icon">📊</span>Dashboard</a>
+  <a href="ministerios.html"><span class="bnav-icon">⛪</span>Ministerios</a>
+  <a href="eventos.html"><span class="bnav-icon">📅</span>Eventos</a>
+  <a href="finanzas.html" class="finanzas-link"><span class="bnav-icon">💰</span>Finanzas</a>
 </nav>
 
 </body>
